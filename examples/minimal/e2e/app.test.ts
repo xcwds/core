@@ -51,59 +51,116 @@ for (const { name, dir, base } of targets) {
 			await expect(page.getByTestId('count')).toHaveText('Pressed 1 times');
 		});
 
-		test('onNavigate guards redirect, cancel and hold navigations, keeping history right', async ({
-			page
-		}) => {
-			const home = page.getByRole('link', { name: "A plugin's page" });
-			const pluginPage = page.getByTestId('plugin-page');
-			const html = page.locator('html');
-			await page.goto(url('/'));
-			await booted(page);
+		test.describe('onNavigate guards', () => {
+			const length = (page: Page) => page.evaluate(() => history.length);
 
-			// A synchronous redirect: the link lands on /hello, and Back returns home.
-			await page.getByRole('link', { name: 'Guarded /moved' }).click();
-			await expect(page).toHaveURL(url('/hello'));
-			await expect(pluginPage).toBeVisible();
-			await page.goBack();
-			await expect(page).toHaveURL(url('/'));
-			await expect(home).toBeVisible();
+			/** Opens the home page; history then has the blank tab and it. */
+			async function start(page: Page) {
+				await page.goto(url('/'));
+				await booted(page);
+				expect(await length(page)).toBe(2);
+			}
 
-			// A cancelled navigation stays put.
-			await page.getByRole('link', { name: 'Guarded /blocked' }).click();
-			await page.waitForTimeout(300);
-			await expect(page).toHaveURL(url('/'));
-			await expect(home).toBeVisible();
+			/** Asserts the URL, what the page shows, and the history length. */
+			async function at(page: Page, path: string, entries: number) {
+				await expect(page).toHaveURL(url(path));
+				const shown =
+					path === '/'
+						? page.getByRole('link', { name: "A plugin's page" })
+						: page.getByTestId('plugin-page');
+				await expect(shown).toBeVisible();
+				expect(await length(page)).toBe(entries);
+			}
 
-			// An async redirect.
-			await page.getByRole('link', { name: 'Guarded /slow' }).click();
-			await expect(page).toHaveURL(url('/hello'));
-			await expect(pluginPage).toBeVisible();
-			await page.goBack();
-			await expect(page).toHaveURL(url('/'));
+			test('redirect and cancel synchronously, and stop redirect loops', async ({ page }) => {
+				const errors: string[] = [];
+				page.on('console', (m) => {
+					if (m.type() === 'error') errors.push(m.text());
+				});
+				await start(page);
+				await page.getByRole('link', { name: 'Guarded /moved' }).click();
+				await at(page, '/hello', 3);
+				await page.goBack();
+				await at(page, '/', 3);
 
-			// An async guard that allows: held, then repeated, through Back and Forward too.
-			await page.getByRole('link', { name: 'Guarded /hello?wait' }).click();
-			await expect(page).toHaveURL(url('/hello?wait'));
-			await expect(pluginPage).toBeVisible();
-			await expect(html).toHaveAttribute('data-path', '/hello');
-			await page.goBack();
-			await expect(page).toHaveURL(url('/'));
-			await expect(home).toBeVisible();
-			await page.goForward();
-			await expect(page).toHaveURL(url('/hello?wait'));
-			await expect(pluginPage).toBeVisible();
-			await page.goBack();
-			await expect(page).toHaveURL(url('/'));
-			await expect(home).toBeVisible();
-			await expect(html).toHaveAttribute('data-path', '/');
-		});
+				await page.getByRole('link', { name: 'Guarded /blocked' }).click();
+				await page.waitForTimeout(300);
+				await at(page, '/', 3);
 
-		test("the first page's guards run once the app has booted", async ({ page }) => {
-			// /moved isn't a page: 404.html boots the app, and the guard redirects in place.
-			await page.goto(url('/moved'));
-			await expect(page).toHaveURL(url('/hello'));
-			await expect(page.getByTestId('plugin-page')).toBeVisible();
-			expect(await page.evaluate(() => history.length)).toBe(2);
+				await page.getByRole('link', { name: 'Guarded /loop' }).click();
+				await expect.poll(() => errors.join('\n')).toContain('redirected more than 5 times');
+				await at(page, '/', 3);
+			});
+
+			test('hold async navigations, and keep history right through Back and Forward', async ({
+				page
+			}) => {
+				const html = page.locator('html');
+				await start(page);
+
+				await page.getByRole('link', { name: 'Guarded /slow' }).click();
+				await at(page, '/hello', 3);
+				await page.goBack();
+				await at(page, '/', 3);
+
+				await page.getByRole('link', { name: 'Guarded /hello?wait' }).click();
+				await at(page, '/hello?wait', 3);
+				await expect(html).toHaveAttribute('data-path', '/hello');
+				await page.goBack();
+				await at(page, '/', 3);
+				await page.goForward();
+				await at(page, '/hello?wait', 3);
+				await page.goBack();
+				await at(page, '/', 3);
+				await expect(html).toHaveAttribute('data-path', '/');
+			});
+
+			test('repeat Back and Forward after a guard that resolves at once', async ({ page }) => {
+				await start(page);
+				await page.getByRole('link', { name: 'Guarded /hello?now' }).click();
+				await at(page, '/hello?now', 3);
+				await page.goBack();
+				await at(page, '/', 3);
+				await page.goForward();
+				await at(page, '/hello?now', 3);
+				await page.goBack();
+				await at(page, '/', 3);
+				// Still guarded next time (nothing was left marked as allowed).
+				await page.goForward();
+				await at(page, '/hello?now', 3);
+			});
+
+			test('redirect a Forward navigation asynchronously', async ({ page }) => {
+				await start(page);
+				await page.getByRole('link', { name: 'Guarded /hello?once' }).click();
+				await at(page, '/hello?once', 3);
+				await page.goBack();
+				await at(page, '/', 3);
+				// Forward is held, undone, then redirected home: the page stays at its entry (a
+				// redirect to the current URL replaces it), and the forward entry is still guarded.
+				await page.goForward();
+				await page.waitForTimeout(300);
+				await at(page, '/', 3);
+				await page.goForward();
+				await page.waitForTimeout(300);
+				await at(page, '/', 3);
+			});
+
+			test("run the first page's guards once the app has booted", async ({ page }) => {
+				// /moved isn't a page: 404.html boots the app, and the guard redirects in place.
+				await page.goto(url('/moved'));
+				await at(page, '/hello', 2);
+			});
+
+			test("drop the first page's redirect once the user has moved on", async ({ page }) => {
+				// The guard for /hello?bounce redirects after 400 ms; the user leaves before that.
+				await page.goto(url('/hello?bounce'));
+				await booted(page);
+				await page.getByRole('link', { name: 'Home' }).click();
+				await at(page, '/', 3);
+				await page.waitForTimeout(800);
+				await at(page, '/', 3);
+			});
 		});
 
 		test('the pre-paint script runs before first paint under a hash CSP', async ({ page }) => {

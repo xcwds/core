@@ -35,6 +35,20 @@ function route(url: URL): Route | null {
 	return path === null ? null : { path, url };
 }
 
+/** The next `popstate` event, or a moment later if none comes. */
+function popstate(): Promise<void> {
+	return new Promise((resolve) => {
+		const done = () => {
+			removeEventListener('popstate', done);
+			clearTimeout(timer);
+			// Let SvelteKit's own popstate handling finish first.
+			setTimeout(resolve);
+		};
+		const timer = setTimeout(done, 500);
+		addEventListener('popstate', done);
+	});
+}
+
 /** Redirects one navigation may go through before it is stopped (a loop between guards). */
 const MAX_REDIRECTS = 5;
 
@@ -84,23 +98,25 @@ export function startApp(): void {
 		const from = nav.from ? route(nav.from.url) : null;
 		const current = ++token;
 		const result = app.hooks.firstNow('onNavigate', [to, from], { path: to.path });
-		if (!(result instanceof Promise)) {
-			// Every hook answered synchronously: decide now, before SvelteKit navigates.
-			if (result === false) nav.cancel();
-			else if (typeof result === 'string') {
-				nav.cancel();
-				redirect(result, target, redirects);
-			}
-			return;
-		}
-		// A hook is async: hold the navigation and repeat it once the hooks allow it. SvelteKit
-		// undoes a held back/forward navigation, so that one is repeated with history.go().
+		const sync = !(result instanceof Promise);
+		// Every hook answered synchronously and lets it go ahead: nothing to do.
+		if (sync && result !== false && typeof result !== 'string') return;
 		nav.cancel();
+		// SvelteKit undoes a cancelled back/forward navigation with history.go(-delta). Anything
+		// that changes history must wait for that, or the browser drops it.
 		const delta = nav.type === 'popstate' ? (nav.delta ?? 0) : 0;
-		void result.then((answer) => {
+		const reverted = delta ? popstate() : Promise.resolve();
+		void Promise.all([result, reverted]).then(([answer]) => {
 			if (!active || current !== token || answer === false) return;
 			if (typeof answer === 'string') return redirect(answer, target, redirects);
-			next = { allowed: target.href, redirects };
+			// An async hook held it and allows it: repeat it, marked so it isn't checked again.
+			const marker = { allowed: target.href, redirects };
+			next = marker;
+			// Should the repeat never reach beforeNavigate, the mark mustn't let a later visit skip
+			// the guards.
+			setTimeout(() => {
+				if (next === marker) next = null;
+			}, 1000);
 			if (delta) history.go(delta);
 			// `goto` can't know the original link's options (e.g. `data-sveltekit-replacestate`).
 			// eslint-disable-next-line svelte/no-navigation-without-resolve
@@ -115,6 +131,10 @@ export function startApp(): void {
 
 	onMount(() => {
 		const stops: (() => void)[] = [];
+		// The first page was loaded, not navigated to: its guards run once the app has booted.
+		// Captured now: by then the user may have navigated, and the redirect is only for this.
+		const initial = new URL(location.href);
+		const initialToken = token;
 		void loadApp()
 			.then(async (loaded) => {
 				if (!active) return null;
@@ -124,15 +144,20 @@ export function startApp(): void {
 					await loaded.hooks.run('onBoot', []);
 				}
 				await loaded.ready();
-				// The first page was loaded, not navigated to: its guards run now. A redirect
-				// replaces it in history; `false` can't take back a page that is already showing.
-				const first = route(new URL(location.href));
+				// A redirect replaces the first page in history; `false` can't take back a page that is
+				// already showing. Either is dropped once the user has navigated elsewhere.
+				const first = route(initial);
 				if (first) {
 					const answer = await loaded.hooks.first('onNavigate', [first, null], {
 						path: first.path
 					});
-					if (active && typeof answer === 'string')
-						redirect(answer, new URL(location.href), 0, true);
+					if (
+						active &&
+						typeof answer === 'string' &&
+						token === initialToken &&
+						location.href === initial.href
+					)
+						redirect(answer, initial, 0, true);
 				}
 				return loaded;
 			})

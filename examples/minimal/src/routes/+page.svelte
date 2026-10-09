@@ -6,7 +6,15 @@
 	// browser, so prerendering (which runs no guards) doesn't crawl them.
 	let mounted = $state(false);
 	onMount(() => (mounted = true));
-	const guarded = ['/moved', '/blocked', '/slow', '/hello?wait'];
+	const guarded = [
+		'/moved',
+		'/blocked',
+		'/loop',
+		'/slow',
+		'/hello?wait',
+		'/hello?now',
+		'/hello?once'
+	];
 </script>
 
 <p><a href={resolve('/hello')}>A plugin's page</a></p>

@@ -21,14 +21,26 @@ export default definePlugin(
 		app.addHook('onBoot', () => {
 			document.documentElement.dataset.hello = greeting;
 		});
-		// Navigation guards for the e2e tests: a redirect, a cancel, and two async ones.
-		const later = (/** @type {string | undefined} */ value) =>
-			new Promise((resolve) => setTimeout(() => resolve(value), 50));
+		// Navigation guards for the e2e tests: redirects, a cancel, a loop and async ones.
+		const later = (/** @type {string | undefined} */ value, ms = 50) =>
+			new Promise((resolve) => setTimeout(() => resolve(value), ms));
+		let visitedOnce = false;
 		app.addHook('onNavigate', (to) => {
 			if (to.path === '/moved') return '/hello';
 			if (to.path === '/blocked') return false;
+			if (to.path === '/loop') return '/loop';
 			if (to.path === '/slow') return later('/hello');
-			if (to.path === '/hello' && to.url?.searchParams.has('wait')) return later(undefined);
+			if (to.path !== '/hello') return undefined;
+			const query = to.url?.searchParams;
+			if (query?.has('wait')) return later(undefined);
+			if (query?.has('now')) return Promise.resolve(undefined);
+			if (query?.has('bounce')) return later('/moved', 400);
+			// Allowed the first time; after that (e.g. Forward) sent home.
+			if (query?.has('once')) {
+				const answer = visitedOnce ? '/' : undefined;
+				visitedOnce = true;
+				return later(answer);
+			}
 			return undefined;
 		});
 		// Paths reach hooks without the base path.

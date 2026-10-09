@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { App, routeInfo } from '@xcwds/sveltekit';
 
@@ -11,6 +12,9 @@
 </svelte:head>
 
 <App>
-	<header><h1>{title}</h1></header>
+	<header>
+		<h1>{title}</h1>
+		<a href={resolve('/')}>Home</a>
+	</header>
 	<main>{@render children()}</main>
 </App>

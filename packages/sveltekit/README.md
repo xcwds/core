@@ -79,14 +79,14 @@ export const prerender = true;
 Forward, and links to app paths SvelteKit has no route for). Returning `false` cancels it, a path
 (without the base) redirects there, and nothing lets it go ahead. Hooks that answer synchronously
 decide on the spot. If one returns a promise, the navigation is held and repeated once the hooks
-allow it: Back and Forward with `history.go()`, everything else with `goto(url)`, so a guarded
+allow it: Back and Forward with `history.go()` (after SvelteKit has undone the held one), everything else with `goto(url)`, so a guarded
 link loses `goto` options and `data-sveltekit-*` link options such as `replaceState`. Only the
 latest held navigation counts. A redirect runs the target's own guards, up to 5 redirects in a
 row; after that the navigation stops and the error goes to `onError`.
 
 The first page is loaded rather than navigated to, so its guards run once the app has booted
 (with `from` null): a redirect replaces it in history, and `false` does nothing, since the page
-is already showing.
+is already showing. Both are dropped if the user has navigated away by the time the guards answer.
 
 Everything that builds a URL honours `paths.base`. Route paths, hook paths and the route
 registry never include it.

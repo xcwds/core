@@ -110,6 +110,14 @@ describe('generate', () => {
 			'generates favicon.ico, which'
 		);
 		await expect(generate({ root })).resolves.toMatchObject({ assetsDir: join(root, 'static') });
+		await write('static/icons/icon.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+		await write(
+			'xcwds.config.js',
+			`export default { brand: { name: 'T', icon: 'static/icons/icon.svg' } };`
+		);
+		await expect(generate({ root })).rejects.toThrow(
+			'brand.icon is static/icons/icon.svg, where @xcwds/sveltekit writes the icon it generates. Move the source SVG out of static/'
+		);
 	});
 
 	it('explains a missing config, a missing plugin and options that are not JSON', async () => {

@@ -173,11 +173,17 @@ export async function generate({
 		manifest
 	};
 	const clashes = assetCollisions(state);
-	if (clashes.length)
+	if (clashes.length) {
+		const dir = relative(root, state.assetsDir) || '.';
+		const icon = config.brand.icon && resolve(root, config.brand.icon);
+		const source = clashes.find((file) => resolve(state.assetsDir, file) === icon);
 		throw new XcwdsError(
 			codes.CONFIG_INVALID,
-			`@xcwds/sveltekit generates ${clashes.join(', ')}, which your static files also have. Remove ${clashes.length === 1 ? 'it' : 'them'} from ${relative(root, state.assetsDir) || '.'}/ (set brand.icon and manifest in the xcwds config instead).`
+			source
+				? `brand.icon is ${config.brand.icon}, where @xcwds/sveltekit writes the icon it generates. Move the source SVG out of ${dir}/ (e.g. to the app's root) and point brand.icon at it.`
+				: `@xcwds/sveltekit generates ${clashes.join(', ')}, which your static files also have. Remove ${clashes.length === 1 ? 'it' : 'them'} from ${dir}/ (set brand.icon and manifest in the xcwds config instead).`
 		);
+	}
 	await writeFile(join(dir, 'worker.js'), workerModule(state));
 	return state;
 }
