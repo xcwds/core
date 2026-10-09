@@ -160,7 +160,6 @@ export default definePlugin(
 			apply() {
 				if (!waiting) return;
 				reloading = true;
-				markJustUpdated();
 				waiting.postMessage({ type: SKIP_WAITING });
 			},
 			reload() {
@@ -177,8 +176,11 @@ export default definePlugin(
 			// The first install taking over an uncontrolled tab isn't an update.
 			let controlled = !!container.controller;
 			const onControllerChange = () => {
-				if (reloading) location.reload();
-				else if (controlled) void updatedElsewhere();
+				if (reloading) {
+					// Marked only now: a takeover that never happens mustn't say "updated" later.
+					markJustUpdated();
+					location.reload();
+				} else if (controlled) void updatedElsewhere();
 				controlled = true;
 			};
 			container.addEventListener('controllerchange', onControllerChange);

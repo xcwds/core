@@ -127,6 +127,7 @@ describe('the page', () => {
 		app.update!.apply();
 		expect(next.messages).toEqual([{ type: 'SKIP_WAITING' }]);
 		expect(browser.tab.reload).not.toHaveBeenCalled();
+		expect(browser.session.has(JUST_UPDATED)).toBe(false);
 		browser.takeOver(next);
 		expect(browser.tab.reload).toHaveBeenCalledOnce();
 		expect(browser.session.has(JUST_UPDATED)).toBe(true);

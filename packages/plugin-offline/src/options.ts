@@ -15,7 +15,8 @@ export type OfflineOptions = {
 	fallback?: string;
 	/**
 	 * Keep same-origin pages and files that weren't precached (and have no query string) after
-	 * they load, so they work offline too. Defaults to `true`.
+	 * they load, so they work offline too. They are kept in this version's cache, so an update
+	 * drops them until they load again online. Defaults to `true`.
 	 */
 	runtimeCaching?: boolean;
 };

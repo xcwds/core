@@ -29,12 +29,12 @@ export default defineConfig({
 
 All paths are app paths, without the base path.
 
-| Option           | Default       | What it does                                                                                                                       |
-| ---------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `precache`       | `[]`          | Extra paths to precache on install, beside everything the build emits.                                                             |
-| `exclude`        | `[]`          | Globs never precached or cached at runtime (`*` within a segment, `**` across segments). They still load from the network.         |
-| `fallback`       | `'/404.html'` | The page offline navigations get when nothing is cached for them. The default boots the app, which renders its error page.         |
-| `runtimeCaching` | `true`        | Keep same-origin `200` responses without a query string that weren't precached, so they work offline later (this version's cache). |
+| Option           | Default       | What it does                                                                                                                                                                                         |
+| ---------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `precache`       | `[]`          | Extra paths to precache on install, beside everything the build emits.                                                                                                                               |
+| `exclude`        | `[]`          | Globs never precached or cached at runtime (`*` within a segment, `**` across segments). They still load from the network.                                                                           |
+| `fallback`       | `'/404.html'` | The page offline navigations get when nothing is cached for them. The default boots the app, which renders its error page.                                                                           |
+| `runtimeCaching` | `true`        | Keep same-origin `200` responses without a query string that weren't precached, so they work offline later. They live in this version's cache, so an update drops them until they load again online. |
 
 ## In the page
 
