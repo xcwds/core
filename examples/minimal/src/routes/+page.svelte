@@ -13,7 +13,8 @@
 		'/slow',
 		'/hello?wait',
 		'/hello?now',
-		'/hello?once'
+		'/hello?once',
+		'/hello?bounce'
 	];
 </script>
 

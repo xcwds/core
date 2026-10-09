@@ -34,7 +34,7 @@ export default definePlugin(
 			const query = to.url?.searchParams;
 			if (query?.has('wait')) return later(undefined);
 			if (query?.has('now')) return Promise.resolve(undefined);
-			if (query?.has('bounce')) return later('/moved', 400);
+			if (query?.has('bounce')) return later('/moved', 1500);
 			// Allowed the first time; after that (e.g. Forward) sent home.
 			if (query?.has('once')) {
 				const answer = visitedOnce ? '/' : undefined;

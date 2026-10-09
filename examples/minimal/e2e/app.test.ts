@@ -153,12 +153,31 @@ for (const { name, dir, base } of targets) {
 			});
 
 			test("drop the first page's redirect once the user has moved on", async ({ page }) => {
-				// The guard for /hello?bounce redirects after 400 ms; the user leaves before that.
+				// The guard for /hello?bounce redirects after 1.5 s; the user leaves well before that.
 				await page.goto(url('/hello?bounce'));
 				await booted(page);
 				await page.getByRole('link', { name: 'Home' }).click();
 				await at(page, '/', 3);
-				await page.waitForTimeout(800);
+				await page.waitForTimeout(2000);
+				await at(page, '/', 3);
+			});
+
+			test('replace the first page through a whole redirect chain', async ({ page }) => {
+				// /hello?bounce → (async) /moved → /hello, all in the first page's history entry.
+				await page.goto(url('/hello?bounce'));
+				await booted(page);
+				await expect(page).toHaveURL(url('/hello'), { timeout: 5000 });
+				await at(page, '/hello', 2);
+				await page.goBack();
+				await expect(page).toHaveURL('about:blank');
+			});
+
+			test('push one entry for a redirect chain started by a link', async ({ page }) => {
+				await start(page);
+				await page.getByRole('link', { name: 'Guarded /hello?bounce' }).click();
+				await expect(page).toHaveURL(url('/hello'), { timeout: 5000 });
+				await at(page, '/hello', 3);
+				await page.goBack();
 				await at(page, '/', 3);
 			});
 		});

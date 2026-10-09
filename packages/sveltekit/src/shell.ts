@@ -7,7 +7,7 @@ import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
 import type { App, Route } from '@xcwds/core';
 import { getContext, onMount, setContext } from 'svelte';
 import { data } from 'virtual:xcwds/client';
-import { stripBase } from './routes.js';
+import { normalizePath, stripBase } from './routes.js';
 import { appLoaded, getApp, loadApp } from './runtime.svelte.js';
 import { settings } from './settings.svelte.js';
 
@@ -49,6 +49,16 @@ function popstate(): Promise<void> {
 	});
 }
 
+/** A URL as navigations compare it: no hash, and no trailing slash. */
+function key(url: URL): string {
+	return url.origin + normalizePath(url.pathname) + url.search;
+}
+
+/** Whether two URLs are the same page and query (a hash change doesn't count as leaving). */
+function sameDocument(a: Location | URL, b: URL): boolean {
+	return a.origin === b.origin && a.pathname === b.pathname && a.search === b.search;
+}
+
 /** Redirects one navigation may go through before it is stopped (a loop between guards). */
 const MAX_REDIRECTS = 5;
 
@@ -67,7 +77,7 @@ export function startApp(): void {
 	 * allowed (so it isn't checked twice) and how many redirects led to it. Read and cleared by
 	 * the next `beforeNavigate`, whatever it is.
 	 */
-	let next: { allowed?: string; redirects: number } | null = null;
+	let next: { href: string; allowed: boolean; redirects: number; replace: boolean } | null = null;
 
 	/** Navigates to a guard's redirect, whose own hooks then run. */
 	function redirect(path: string, from: URL, redirects: number, replaceState = false) {
@@ -77,24 +87,29 @@ export function startApp(): void {
 			);
 			return;
 		}
-		next = { redirects: redirects + 1 };
+		const url = new URL(data.base + path, from);
+		// The whole chain replaces or pushes like its first hop: one entry at most.
+		next = { href: key(url), allowed: false, redirects: redirects + 1, replace: replaceState };
 		// The URL has the base path.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		void goto(new URL(data.base + path, from), { replaceState });
+		void goto(url, { replaceState });
 	}
 
 	beforeNavigate((nav) => {
-		const carried = next;
+		// What this code carried over applies only to the navigation it started.
+		const carried = next && nav.to && next.href === key(nav.to.url) ? next : null;
 		next = null;
 		// Links to app paths SvelteKit has no route for unload the page (`404.html` then boots
 		// the app), but they are still the app's navigations, so they are guarded too.
 		if (!nav.to || nav.type === 'leave' || !appLoaded()) return;
 		const target = nav.to.url;
 		if (target.origin !== location.origin) return;
-		if (carried?.allowed === target.href) return;
+		if (carried?.allowed) return;
 		const to = route(target);
 		if (!to) return;
 		const redirects = carried?.redirects ?? 0;
+		/** Whether this navigation is a hop of a chain that replaces the current entry. */
+		const replace = carried?.replace ?? false;
 		const from = nav.from ? route(nav.from.url) : null;
 		const current = ++token;
 		const result = app.hooks.firstNow('onNavigate', [to, from], { path: to.path });
@@ -108,9 +123,9 @@ export function startApp(): void {
 		const reverted = delta ? popstate() : Promise.resolve();
 		void Promise.all([result, reverted]).then(([answer]) => {
 			if (!active || current !== token || answer === false) return;
-			if (typeof answer === 'string') return redirect(answer, target, redirects);
+			if (typeof answer === 'string') return redirect(answer, target, redirects, replace);
 			// An async hook held it and allows it: repeat it, marked so it isn't checked again.
-			const marker = { allowed: target.href, redirects };
+			const marker = { href: key(target), allowed: true, redirects, replace };
 			next = marker;
 			// Should the repeat never reach beforeNavigate, the mark mustn't let a later visit skip
 			// the guards.
@@ -120,7 +135,7 @@ export function startApp(): void {
 			if (delta) history.go(delta);
 			// `goto` can't know the original link's options (e.g. `data-sveltekit-replacestate`).
 			// eslint-disable-next-line svelte/no-navigation-without-resolve
-			else void goto(target);
+			else void goto(target, { replaceState: replace });
 		});
 	});
 
@@ -155,7 +170,7 @@ export function startApp(): void {
 						active &&
 						typeof answer === 'string' &&
 						token === initialToken &&
-						location.href === initial.href
+						sameDocument(location, initial)
 					)
 						redirect(answer, initial, 0, true);
 				}
