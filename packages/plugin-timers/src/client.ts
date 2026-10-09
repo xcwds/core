@@ -96,7 +96,15 @@ export default definePlugin(
 			default: DEFAULT_ALARM,
 			parse: parseAlarm,
 			label: 'Timer alarm',
-			section: 'timers'
+			section: 'timers',
+			control: {
+				type: 'switches',
+				options: [
+					{ key: 'sound', label: 'Alarm sound', hint: 'Beep when a timer finishes.' },
+					{ key: 'vibration', label: 'Vibration', hint: "Android only; iPhones don't allow it." },
+					{ key: 'keepAwake', label: 'Keep screen on', hint: 'While a timer is running.' }
+				]
+			}
 		});
 		const entry = app.storage.entry('timers', {
 			label: 'Timers',

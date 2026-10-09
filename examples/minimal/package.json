@@ -16,6 +16,7 @@
 		"@xcwds/core": "workspace:*",
 		"@xcwds/plugin-install": "workspace:*",
 		"@xcwds/plugin-offline": "workspace:*",
+		"@xcwds/plugin-settings": "workspace:*",
 		"@xcwds/plugin-share": "workspace:*",
 		"@xcwds/plugin-shell": "workspace:*",
 		"@xcwds/plugin-theme": "workspace:*",

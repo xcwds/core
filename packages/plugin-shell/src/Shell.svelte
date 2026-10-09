@@ -29,7 +29,7 @@
 	const app = useApp();
 	const shell = app.shell;
 	const sections = shell?.sections ?? [];
-	let actions = $state<readonly Slot[]>(shell?.header.list() ?? []);
+	let actions = $state.raw<readonly Slot[]>(shell?.header.list() ?? []);
 	$effect(() => shell?.header.subscribe((list) => (actions = list)));
 
 	const path = $derived(appPath(page.url.pathname) ?? page.url.pathname);

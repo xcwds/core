@@ -179,7 +179,10 @@ export type StorageRegistry = {
 	hasUnsavedChanges(entry: Entry<unknown>): boolean;
 	onSaveFailure(listener: SaveFailureListener): () => void;
 
-	/** Listens for changes other tabs save (`key` is null when everything was cleared). */
+	/**
+	 * Listens for changes other tabs save, and for this tab's `clear()` and `importData()`
+	 * (`key` is null when everything was cleared or imported).
+	 */
 	onChange(listener: ChangeListener): () => void;
 	/** Starts listening for `storage` events. Browser only; returns a stop function. */
 	startSync(target?: EventTarget): () => void;
@@ -232,6 +235,9 @@ export function createStorage(options: StorageOptions = {}): StorageRegistry {
 	const namespaces = new Map<string, Ns>();
 	const failing = new Set<string>();
 	const changeListeners = new Set<ChangeListener>();
+	const emit = (key: string | null, value: unknown) => {
+		for (const l of [...changeListeners]) l(key, value);
+	};
 	const failureListeners = new Set<SaveFailureListener>();
 	let stop: (() => void) | null = null;
 
@@ -582,9 +588,11 @@ export function createStorage(options: StorageOptions = {}): StorageRegistry {
 		groups() {
 			const out = new Map<string, Group>();
 			for (const e of entries.values()) {
-				if (!out.has(e.group)) out.set(e.group, { id: e.group, label: e.group, entries: [] });
+				if (!out.has(e.group)) out.set(e.group, { id: e.group, label: '', entries: [] });
 				out.get(e.group)!.entries.push(e);
 			}
+			// Named after what's in it, e.g. "Home shortcuts" or "Workout, Workout history".
+			for (const g of out.values()) g.label = g.entries.map((e) => e.label).join(', ');
 			return [...out.values()];
 		},
 		read,
@@ -597,7 +605,12 @@ export function createStorage(options: StorageOptions = {}): StorageRegistry {
 			return { value, saved };
 		},
 		writable,
-		clear,
+		clear(list) {
+			clear(list);
+			// This tab's own clears reach its listeners too, so what's showing follows.
+			if (list) for (const e of list) emit(e.key, undefined);
+			else emit(null, undefined);
+		},
 		saveResult(e, saved, { explicit = false } = {}) {
 			if (saved) {
 				failing.delete(e.key);
@@ -639,7 +652,11 @@ export function createStorage(options: StorageOptions = {}): StorageRegistry {
 		stopSync: () => stop?.(),
 		exportData,
 		parseBackup,
-		importData,
+		importData(backup, mode) {
+			const ok = importData(backup, mode);
+			emit(null, undefined);
+			return ok;
+		},
 		unclaimed,
 		removeUnclaimed(keys) {
 			const allowed = new Set(unclaimed().map((u) => u.key));

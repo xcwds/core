@@ -97,19 +97,28 @@ describe('entries', () => {
 		expect(storage.update(e, 1, (v) => (v ?? 0) + 1)).toEqual({ value: 11, saved: false });
 	});
 
-	it('clears all entries or a list, and groups them', () => {
+	it('clears all entries or a list, groups them, and tells this tab’s listeners', () => {
 		const { storage, adapter } = setup({ 'app:a:x': '1', 'app:b:y': '2', 'app:z:other': '3' });
-		const a = storage.scope('a').entry('x', { label: 'x', parse: isNumber });
-		const b = storage.scope('b').entry('y', { label: 'y', parse: isNumber, group: 'history' });
-		expect(storage.groups().map((g) => [g.id, g.entries.length])).toEqual([
-			['a', 1],
-			['history', 1]
+		const a = storage.scope('a').entry('x', { label: 'X', parse: isNumber });
+		const b = storage.scope('b').entry('y', { label: 'Y', parse: isNumber, group: 'history' });
+		storage.scope('c').entry('w', { label: 'W', parse: isNumber, group: 'history' });
+		expect(storage.groups().map((g) => [g.id, g.label, g.entries.length])).toEqual([
+			['a', 'X', 1],
+			['history', 'Y, W', 2]
 		]);
+		const seen: unknown[] = [];
+		storage.onChange((key, value) => void seen.push([key, value]));
 		storage.clear([a]);
 		expect([...adapter.data.keys()]).toEqual(['app:b:y', 'app:z:other']);
 		storage.clear();
 		expect([...adapter.data.keys()]).toEqual(['app:z:other']);
 		expect(storage.read(b)).toBeUndefined();
+		storage.importData(storage.exportData(), 'merge');
+		expect(seen).toEqual([
+			['app:a:x', undefined],
+			[null, undefined],
+			[null, undefined]
+		]);
 	});
 });
 

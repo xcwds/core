@@ -11,7 +11,7 @@
 	let { children }: { children?: Snippet } = $props();
 
 	const shell = useApp().shell;
-	let blocks = $state<readonly Slot[]>(shell?.home.list() ?? []);
+	let blocks = $state.raw<readonly Slot[]>(shell?.home.list() ?? []);
 	$effect(() => shell?.home.subscribe((list) => (blocks = list)));
 </script>
 

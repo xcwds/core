@@ -44,6 +44,14 @@ export default definePlugin(
 			parse: (v) => (isTheme(v) ? v : undefined),
 			label: 'Theme',
 			section: 'appearance',
+			control: {
+				type: 'choice',
+				options: [
+					{ value: 'system', label: 'System' },
+					{ value: 'light', label: 'Light' },
+					{ value: 'dark', label: 'Dark' }
+				]
+			},
 			prePaint: APPLY
 		});
 

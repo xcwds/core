@@ -75,6 +75,9 @@ declare module '@xcwds/core' {
 export const SAVE_FAILED =
 	"Couldn't save on this device: storage is full or blocked. Download a backup from Settings.";
 
+/** What this plugin uses of `app.settingsPage` (from `@xcwds/plugin-settings`, if present). */
+type SettingsPageLike = { control(name: string, component: Component): () => void };
+
 /** At most this many toasts show at once; older ones go first. */
 const MAX_TOASTS = 3;
 
@@ -159,6 +162,7 @@ export default definePlugin(
 		app.decorate('toast', toast);
 
 		let stops: (() => void)[] = [];
+		let closed = false;
 		app.addHook('onBoot', () => {
 			const root = document.documentElement;
 			const apply = () => applyNav(app.settings.get().nav, root);
@@ -172,8 +176,16 @@ export default definePlugin(
 						toast(SAVE_FAILED, { durationMs: 6000 });
 				})
 			);
+			// With @xcwds/plugin-settings, the settings page shows the nav setting with NavPicker.
+			// Loaded lazily: the component imports @xcwds/sveltekit, which imports this entry.
+			const page = (app as { settingsPage?: SettingsPageLike }).settingsPage;
+			if (page)
+				void import('./NavPicker.svelte').then(({ default: NavPicker }) => {
+					if (!closed) stops.push(page.control('nav', NavPicker));
+				});
 		});
 		app.addHook('onClose', () => {
+			closed = true;
 			for (const stop of stops) stop();
 			stops = [];
 			for (const timer of timers.values()) clearTimeout(timer);

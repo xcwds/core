@@ -17,13 +17,72 @@ export interface Settings {}
 
 type Values = Settings & Record<string, unknown>;
 
+/**
+ * How a settings page shows a field, as plain data (`@xcwds/plugin-settings` renders these):
+ * `choice` is a segmented control, `switch` a switch for a boolean, `number` a stepper, and
+ * `switches` one switch per boolean in an object field (e.g. `{ sound, vibration }`).
+ */
+export type Control =
+	| { type: 'choice'; options: { value: string | number | boolean; label: string }[] }
+	| { type: 'switch' }
+	| { type: 'number'; min: number; max: number; step?: number; unit?: string }
+	| { type: 'switches'; options: { key: string; label: string; hint?: string }[] };
+
+const CONTROLS = ['choice', 'switch', 'number', 'switches'];
+
+const label = (v: unknown) => typeof v === 'string' && v.trim() !== '';
+const optionList = (v: unknown, ok: (o: Record<string, unknown>) => boolean) =>
+	Array.isArray(v) &&
+	v.length > 0 &&
+	v.every((o) => typeof o === 'object' && o !== null && ok(o as Record<string, unknown>));
+
+/** What's wrong with a control (finishing "The setting "x" …"), or undefined. */
+function controlProblem(input: unknown): string | undefined {
+	const c = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>;
+	switch (c.type) {
+		case 'switch':
+			return undefined;
+		case 'choice':
+			return optionList(
+				c.options,
+				(o) => label(o.label) && ['string', 'number', 'boolean'].includes(typeof o.value)
+			)
+				? undefined
+				: 'needs choice `options`, each with a `value` (string, number or boolean) and a `label`';
+		case 'switches':
+			return optionList(
+				c.options,
+				(o) =>
+					label(o.key) && label(o.label) && (o.hint === undefined || typeof o.hint === 'string')
+			)
+				? undefined
+				: 'needs switch `options`, each with a `key` and a `label`';
+		case 'number': {
+			const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+			if (!finite(c.min) || !finite(c.max) || c.min > c.max)
+				return 'needs a number control with `min` up to `max`';
+			if (c.step !== undefined && !(finite(c.step) && c.step > 0))
+				return 'needs a positive number control `step`';
+			if (c.unit !== undefined && typeof c.unit !== 'string')
+				return 'needs a string number control `unit`';
+			return undefined;
+		}
+		default:
+			return `has an unknown control (one of ${CONTROLS.join(', ')})`;
+	}
+}
+
 export type FieldDefinition<T> = {
 	default: T;
 	/** Returns the value if `raw` is valid, otherwise `undefined` (the default is used). */
 	parse: (raw: unknown) => T | undefined;
 	label?: string;
+	/** One line under the label on a settings page. */
+	hint?: string;
 	/** Where a settings page shows it, e.g. `appearance`. */
 	section?: string;
+	/** How a settings page shows it; without one, only a component the app or a plugin adds does. */
+	control?: Control;
 	/**
 	 * Plain ES5 that applies the field before first paint: a function body that gets the saved
 	 * (or default) value as `v` and `document.documentElement` as `root`. It must validate `v`
@@ -36,7 +95,9 @@ export type FieldInfo = {
 	name: string;
 	plugin: string;
 	label: string;
+	hint: string | undefined;
 	section: string;
+	control: Control | undefined;
 	default: unknown;
 };
 
@@ -219,7 +280,9 @@ export function createSettings(storage: StorageRegistry): SettingsRegistry {
 				name,
 				plugin: f.plugin,
 				label: f.label ?? name,
+				hint: f.hint,
 				section: f.section ?? 'general',
+				control: clone(f.control),
 				default: clone(f.default)
 			})),
 		prePaintScript
@@ -255,6 +318,15 @@ export function createSettings(storage: StorageRegistry): SettingsRegistry {
 							`The setting "${name}" needs a parse function that accepts its default.`,
 							{ plugin: plugin || undefined }
 						);
+					if (definition.control !== undefined) {
+						const problem = controlProblem(definition.control);
+						if (problem)
+							throw new XcwdsError(
+								codes.SETTINGS_FIELD_INVALID,
+								`The setting "${name}" ${problem}.`,
+								{ plugin: plugin || undefined }
+							);
+					}
 					fields.set(name, { ...definition, plugin });
 					// A field added after loading reads its saved value now.
 					const saved = loaded ? storage.read(entry) : undefined;
