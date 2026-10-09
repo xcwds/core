@@ -1,0 +1,63 @@
+{
+	"name": "@xcwds/testing",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Test an @xcwds app and its plugins: a Vitest kit (test app, fake clock, simulated tabs, worker hooks) and Playwright helpers (hydration, tap targets, a GitHub Pages-like server, fake deploys, a config preset).",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/xcwds/core.git",
+		"directory": "packages/testing"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./playwright": {
+			"types": "./dist/playwright/index.d.ts",
+			"default": "./dist/playwright/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"check": "tsc -p tsconfig.json --noEmit",
+		"publint": "publint"
+	},
+	"dependencies": {
+		"@xcwds/core": "workspace:^",
+		"@xcwds/sveltekit": "workspace:^"
+	},
+	"devDependencies": {
+		"@playwright/test": "1.57.0",
+		"@xcwds-example/plugin-hello": "workspace:*",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.15"
+	},
+	"peerDependencies": {
+		"@playwright/test": "^1.50.0",
+		"vitest": "^3.0.0 || ^4.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@playwright/test": {
+			"optional": true
+		}
+	},
+	"keywords": [
+		"pwa",
+		"testing",
+		"vitest",
+		"playwright",
+		"xcwds"
+	],
+	"engines": {
+		"node": ">=22.18"
+	}
+}

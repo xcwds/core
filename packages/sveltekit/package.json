@@ -37,6 +37,10 @@
 			"types": "./dist/worker.d.ts",
 			"default": "./dist/worker.js"
 		},
+		"./routes": {
+			"types": "./dist/routes.d.ts",
+			"default": "./dist/routes.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"files": [

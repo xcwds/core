@@ -21,6 +21,14 @@ export default definePlugin(
 		app.addHook('onBoot', () => {
 			document.documentElement.dataset.hello = greeting;
 		});
+		// Test-only: records the order hooks run in for the e2e tests (and @xcwds/testing's, which must
+		// match). A real plugin has no reason to do this.
+		const record = (/** @type {string} */ entry) => {
+			const g = /** @type {{ xcwdsHooks?: string[] }} */ (globalThis);
+			(g.xcwdsHooks ??= []).push(entry);
+		};
+		app.addHook('onNavigate', (to, from) => void record(`guard ${to.path} ${from?.path ?? '-'}`));
+		app.addHook('afterNavigate', (to) => void record(`after ${to.path}`));
 		// Navigation guards for the e2e tests: redirects, a cancel, a loop and async ones.
 		const later = (/** @type {string | undefined} */ value, ms = 50) =>
 			new Promise((resolve) => setTimeout(() => resolve(value), ms));

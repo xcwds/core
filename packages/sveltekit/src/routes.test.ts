@@ -1,6 +1,17 @@
 import { createApp, definePlugin, memoryStorage, XcwdsError } from '@xcwds/core';
 import { describe, expect, it } from 'vitest';
-import { createRoutes, decorateRoutes, normalizePath, stripBase } from './routes.js';
+import {
+	MAX_REDIRECTS,
+	askGuards,
+	createRoutes,
+	decide,
+	decorateRoutes,
+	normalizePath,
+	routeOf,
+	setupApp,
+	stripBase,
+	workerPath
+} from './routes.js';
 
 describe('paths', () => {
 	it('normalises paths and strips the base path', () => {
@@ -58,5 +69,58 @@ describe('the route registry', () => {
 			['/utils/timer', '@xcwds/plugin-timers'],
 			['/about', 'anonymous plugin']
 		]);
+	});
+});
+
+describe('the shared navigation core', () => {
+	const target = new URL('http://x/sub/hello/?q=1');
+
+	it('turns URLs into routes, keeping the path as written', () => {
+		expect(routeOf(target, '/sub')).toEqual({ path: '/hello/', url: target });
+		expect(routeOf(new URL('http://x/other'), '/sub')).toBeNull();
+	});
+
+	it('decides what guards answers mean', () => {
+		const base = '/sub';
+		expect(decide(undefined, { target, base, redirects: 0 })).toEqual({ action: 'allow' });
+		expect(decide(false, { target, base, redirects: 0 })).toEqual({ action: 'cancel' });
+		expect(decide(false, { target, base, redirects: 0, first: true })).toEqual({
+			action: 'allow'
+		});
+		expect(decide('/a?b', { target, base, redirects: 2 })).toEqual({
+			action: 'redirect',
+			url: new URL('http://x/sub/a?b'),
+			redirects: 3
+		});
+		const stop = decide('/a', { target, base, redirects: MAX_REDIRECTS });
+		expect(stop).toMatchObject({ action: 'stop' });
+		expect(stop.action === 'stop' && stop.error.message).toMatch(
+			/more than 5 times; stopped at \/a/
+		);
+	});
+
+	it('runs guards synchronously when they answer synchronously', async () => {
+		const app = setupApp({
+			name: 'T',
+			storagePrefix: 'app:',
+			routes: [{ path: '/t', title: 'T', plugin: '' }],
+			plugins: [
+				[(a) => void a.addHook('onNavigate', (to) => (to.path === '/t' ? '/u' : undefined)), {}]
+			],
+			storage: memoryStorage(),
+			logLevel: 'silent'
+		});
+		await app.ready();
+		expect(app.routes.get('/t')?.title).toBe('T');
+		expect(askGuards(app, { path: '/t' }, null)).toBe('/u');
+		await app.close();
+	});
+
+	it('picks the requests the worker handles', () => {
+		const get = (url: string, method = 'GET') => new Request(url, { method });
+		expect(workerPath(get('http://x/sub/a'), 'http://x', '/sub')).toBe('/a');
+		expect(workerPath(get('http://x/a'), 'http://x', '/sub')).toBeNull();
+		expect(workerPath(get('http://y/sub/a'), 'http://x', '/sub')).toBeNull();
+		expect(workerPath(get('http://x/sub/a', 'POST'), 'http://x', '/sub')).toBeNull();
 	});
 });

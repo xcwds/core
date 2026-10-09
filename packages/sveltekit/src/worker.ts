@@ -9,9 +9,9 @@
  * other requests go to the network, then the cache, then `404.html` for navigations. A new
  * version waits until every tab of the old one has closed; it never takes over a running page.
  */
-import { createApp, memoryStorage, type App, type Plugin } from '@xcwds/core';
+import { memoryStorage, type App, type Plugin } from '@xcwds/core';
 import type { WorkerData } from './data.js';
-import { decorateRoutes, stripBase } from './routes.js';
+import { setupApp, workerPath } from './routes.js';
 
 export type WorkerOptions = WorkerData & {
 	/** From `$service-worker`. */
@@ -60,13 +60,7 @@ export function precacheList(
 /** Starts the worker. Returns its app (for tests and plugins that need it). */
 export function startWorker(options: WorkerOptions): App {
 	const sw = globalThis as unknown as WorkerScope;
-	const app = createApp({
-		storage: memoryStorage(),
-		storagePrefix: options.storagePrefix,
-		appName: options.name
-	});
-	decorateRoutes(app, options.routes);
-	for (const [plugin, opts] of options.plugins) app.register(plugin, { ...opts } as never);
+	const app = setupApp({ ...options, storage: memoryStorage() });
 	// A plugin that fails to load is logged; the worker still serves the app without it.
 	const ready = app.ready().then(
 		() => true,
@@ -119,10 +113,9 @@ export function startWorker(options: WorkerOptions): App {
 
 	sw.addEventListener('fetch', (event) => {
 		const { request } = event;
-		const url = new URL(request.url);
-		if (request.method !== 'GET' || url.origin !== sw.location.origin) return;
-		const path = stripBase(url.pathname, base);
+		const path = workerPath(request, sw.location.origin, base);
 		if (path === null) return;
+		const url = new URL(request.url);
 		event.respondWith(
 			(async () => {
 				const answer = (await ready)
