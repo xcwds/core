@@ -155,7 +155,7 @@ describe('buildTestApp', () => {
 		const shared = sharedStorage();
 		const first = await build({ plugins: [counter] }, { storage: shared });
 		const second = await first.openTab();
-		expect(second.shared).toBe(shared);
+		expect(second.sharedStorage).toBe(shared);
 		counterOf(first).bump();
 		counterOf(first).bump();
 		await first.settle();

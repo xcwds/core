@@ -51,7 +51,7 @@ export type TestHelpers = {
 	readonly path: string;
 	readonly clock: FakeClock | undefined;
 	/** The storage all tabs share. */
-	readonly shared: SharedStorage;
+	readonly sharedStorage: SharedStorage;
 	/** Every error reported to `onError` in any tab, in order. */
 	readonly errors: readonly unknown[];
 	/** Opens another tab of the same app on the same storage (and clock). */
@@ -154,7 +154,7 @@ async function openTab(group: Group, initial: string): Promise<TestApp> {
 			return show(current);
 		},
 		clock: group.clock,
-		shared: group.shared,
+		sharedStorage: group.shared,
 		errors: trap.errors,
 		openTab: (options = {}) => openTab(group, options.path ?? '/'),
 		settle: () => trap.run(() => group.shared.settled()),
