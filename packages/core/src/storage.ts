@@ -373,7 +373,15 @@ export function createStorage(options: StorageOptions = {}): StorageRegistry {
 	}
 
 	function latest<T>(e: Entry<T>, current: T | undefined, { unsaved = false } = {}) {
-		return writable() && !unsaved ? read(e) : current;
+		if (unsaved) return current;
+		// Start from what's saved whenever storage can be read, even when it's full: falling back
+		// to this tab's copy then could save over another tab's changes.
+		try {
+			adapter.get(e.key);
+		} catch {
+			return current;
+		}
+		return read(e);
 	}
 
 	function clear(list: Entry<unknown>[] = [...entries.values()]) {

@@ -136,6 +136,13 @@ describe('settings', () => {
 		expect(settings.get().late).toBe('x');
 	});
 
+	it('loads saved settings before a change, so it never saves defaults over them', () => {
+		const { settings, adapter } = setup({ 'app:settings': '{"theme":"dark","presets":[3]}' });
+		settings.set({ presets: [2] });
+		expect(JSON.parse(adapter.data.get('app:settings')!)).toEqual({ theme: 'dark', presets: [2] });
+		expect(settings.ready()).toBe(true);
+	});
+
 	it('lists fields with their plugin and section', () => {
 		const { settings } = setup();
 		expect(settings.fields()).toEqual([
@@ -182,6 +189,19 @@ describe('settings', () => {
 				.scope('q')
 				.field('b', { default: 'y', parse: (v) => v as string, prePaint: 'root.dataset.b=v;' });
 			expect(run(settings.prePaintScript(), '{}')).toEqual({ colorScheme: 'auto', b: 'y' });
+		});
+
+		it('escapes values that could end the inline script', () => {
+			const { settings } = setup();
+			settings.scope('p').field('label', {
+				default: '</script><img src=x>\u2028',
+				parse: (v) => (typeof v === 'string' ? v : undefined),
+				prePaint: 'root.dataset.label=v;'
+			});
+			const script = settings.prePaintScript();
+			expect(script).not.toContain('</script');
+			expect(script).not.toContain('\u2028');
+			expect(run(script, null).label).toBe('</script><img src=x>\u2028');
 		});
 
 		it('is empty when no field has a snippet', () => {

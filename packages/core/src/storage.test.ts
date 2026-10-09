@@ -84,6 +84,19 @@ describe('entries', () => {
 		expect(adapter.data.has('app:n:count')).toBe(false);
 	});
 
+	it('updates from the saved value even when storage is full', () => {
+		const adapter = memoryStorage({ 'app:n:count': '10' });
+		const full = {
+			...adapter,
+			set: () => {
+				throw new Error('QuotaExceededError');
+			}
+		};
+		const storage = createStorage({ adapter: full, onError: vi.fn() });
+		const e = storage.scope('n').entry('count', { label: 'c', parse: isNumber });
+		expect(storage.update(e, 1, (v) => (v ?? 0) + 1)).toEqual({ value: 11, saved: false });
+	});
+
 	it('clears all entries or a list, and groups them', () => {
 		const { storage, adapter } = setup({ 'app:a:x': '1', 'app:b:y': '2', 'app:z:other': '3' });
 		const a = storage.scope('a').entry('x', { label: 'x', parse: isNumber });

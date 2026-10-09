@@ -178,6 +178,8 @@ type Kernel = {
 	log: Logger;
 	hooks: HookRecord[];
 	customHooks: Set<string>;
+	/** Storage namespace → the plugin that owns it. */
+	namespaces: Map<string, string>;
 	routeHooks: Set<string>;
 	runner: HookRunner;
 	storage: StorageRegistry;
@@ -202,6 +204,8 @@ type State = {
 	prefix: string;
 	namespace: string;
 	queue: QueueItem[];
+	/** Set once this plugin's queue has been loaded; registering on it after that is an error. */
+	drained: boolean;
 };
 
 const states = new WeakMap<object, State>();
@@ -300,6 +304,12 @@ const proto: App = {
 			);
 		if (typeof plugin !== 'function')
 			throw new XcwdsError(codes.PLUGIN_NOT_A_FUNCTION, 'A plugin must be a function.');
+		if (s.drained)
+			throw new XcwdsError(
+				codes.ALREADY_BOOTED,
+				`Can't register "${pluginMeta(plugin as Plugin<never>).name ?? 'a plugin'}" from "${s.plugin}" after it has finished loading. Register plugins before your plugin's function returns.`,
+				{ plugin: s.plugin || undefined }
+			);
 		s.queue.push({
 			plugin: plugin as Plugin<never>,
 			options: { ...(options as Record<string, unknown> | undefined) }
@@ -491,6 +501,7 @@ async function drain(s: State): Promise<void> {
 		const item = s.queue.shift()!;
 		await loadPlugin(s, item);
 	}
+	s.drained = true;
 }
 
 async function loadPlugin(parent: State, { plugin, options }: QueueItem): Promise<void> {
@@ -526,6 +537,18 @@ async function loadPlugin(parent: State, { plugin, options }: QueueItem): Promis
 				{ plugin: name }
 			);
 	}
+	const namespace = meta.namespace ?? (named ? defaultNamespace(meta.name!) : parent.namespace);
+	// Plugins share a namespace's storage keys and migration version, so only one may own it.
+	if (namespace && (named || meta.namespace !== undefined)) {
+		const owner = k.namespaces.get(namespace);
+		if (owner !== undefined && owner !== name)
+			throw new XcwdsError(
+				codes.PLUGIN_NAMESPACE,
+				`Plugin "${name}" wants the storage namespace "${namespace}", which "${owner}" already uses. Set a different \`namespace\` in one of them.`,
+				{ plugin: name }
+			);
+		k.namespaces.set(namespace, name);
+	}
 	if (named) parent.scope.registered.add(meta.name!);
 
 	const { prefix, ...pluginOptions } = options as RegisterOptions & Record<string, unknown>;
@@ -537,8 +560,9 @@ async function loadPlugin(parent: State, { plugin, options }: QueueItem): Promis
 		scope: encapsulate ? { registered: new Set() } : parent.scope,
 		plugin: name,
 		prefix: joinPrefix(parent.prefix, prefix),
-		namespace: meta.namespace ?? (named ? defaultNamespace(meta.name!) : parent.namespace),
-		queue: []
+		namespace,
+		queue: [],
+		drained: false
 	};
 	const app = view(parentView, s);
 	if (encapsulate) s.target = app;
@@ -577,6 +601,7 @@ export function createApp(options: AppOptions = {}): App {
 		log,
 		hooks: [],
 		customHooks: new Set(),
+		namespaces: new Map(),
 		routeHooks: new Set(),
 		runner: createRunner(() => kernel),
 		storage,
@@ -594,7 +619,8 @@ export function createApp(options: AppOptions = {}): App {
 		plugin: '',
 		prefix: '',
 		namespace: '',
-		queue: []
+		queue: [],
+		drained: false
 	};
 	const app = view(proto, root);
 	root.target = app;

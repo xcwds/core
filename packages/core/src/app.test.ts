@@ -172,6 +172,61 @@ describe('plugin loading', () => {
 			expect.objectContaining({ code: codes.CLOSED })
 		);
 	});
+
+	it('refuses a register after the plugin has finished loading, instead of dropping it', async () => {
+		const app = testApp();
+		let late: App | undefined;
+		app.register(definePlugin((a) => void (late = a), { name: 'early' }));
+		app.register(definePlugin(() => {}, { name: 'other' }));
+		await app.ready();
+		const error = (() => {
+			try {
+				late!.register(definePlugin(() => {}, { name: 'late' }));
+			} catch (e) {
+				return e as XcwdsError;
+			}
+		})();
+		expect(error?.code).toBe(codes.ALREADY_BOOTED);
+	});
+
+	it('refuses a register from a finished plugin while siblings still load', async () => {
+		const app = testApp();
+		let late: App | undefined;
+		let caught: unknown;
+		app.register(definePlugin((a) => void (late = a), { name: 'first' }));
+		app.register(
+			definePlugin(
+				() => {
+					try {
+						late!.register(definePlugin(() => {}, { name: 'late' }));
+					} catch (e) {
+						caught = e;
+					}
+				},
+				{ name: 'second' }
+			)
+		);
+		await app.ready();
+		expect((caught as XcwdsError).code).toBe(codes.ALREADY_BOOTED);
+	});
+
+	it('refuses two different plugins sharing a storage namespace', async () => {
+		const app = testApp();
+		app.register(definePlugin(() => {}, { name: '@a/timer' }));
+		app.register(definePlugin(() => {}, { name: '@b/timer' }));
+		const error = await rejects(app.ready(), codes.PLUGIN_NAMESPACE);
+		expect(error.message).toContain('@a/timer');
+		expect(error.message).toContain('@b/timer');
+	});
+
+	it('lets one plugin use its namespace in separate scopes', async () => {
+		const app = testApp();
+		const timer = definePlugin(() => {}, { name: 'timer' });
+		app.register((a) => void a.register(timer));
+		app.register((a) => void a.register(timer));
+		app.register(definePlugin(() => {}, { name: 'other', namespace: 'other-ns' }));
+		await expect(app.ready()).resolves.toBe(app);
+	});
 });
 
 describe('decorators and encapsulation', () => {

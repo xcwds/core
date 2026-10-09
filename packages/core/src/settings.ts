@@ -75,6 +75,13 @@ export type SettingsRegistry = Omit<SettingsScope, 'field'> & {
 const FIELD = /^[A-Za-z_$][\w$]*$/;
 const clone = <T>(v: T): T => (v === undefined ? v : structuredClone(v));
 
+/** JSON that is safe inside an inline `<script>`: no `</script>`, and no U+2028/U+2029. */
+const inline = (v: unknown): string =>
+	(JSON.stringify(v) ?? 'undefined').replace(
+		/[<\u2028\u2029]/g,
+		(c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`
+	);
+
 export function createSettings(storage: StorageRegistry): SettingsRegistry {
 	type Field = FieldDefinition<unknown> & { plugin: string };
 	const fields = new Map<string, Field>();
@@ -156,15 +163,15 @@ export function createSettings(storage: StorageRegistry): SettingsRegistry {
 		const parts: string[] = [];
 		for (const [name, f] of fields) {
 			if (!f.prePaint) continue;
-			const n = JSON.stringify(name);
+			const n = inline(name);
 			parts.push(
-				`try{(function(v,root){${f.prePaint}})(has.call(s,${n})?s[${n}]:${JSON.stringify(f.default)},root)}catch(e){}`
+				`try{(function(v,root){${f.prePaint}})(has.call(s,${n})?s[${n}]:${inline(f.default)},root)}catch(e){}`
 			);
 		}
 		if (parts.length === 0) return '';
 		return (
 			'(function(){var s={};' +
-			`try{s=JSON.parse(localStorage.getItem(${JSON.stringify(entry.key)})||'{}')}catch(e){}` +
+			`try{s=JSON.parse(localStorage.getItem(${inline(entry.key)})||'{}')}catch(e){}` +
 			"if(!s||typeof s!=='object')s={};" +
 			'var has=Object.prototype.hasOwnProperty,root=document.documentElement;' +
 			parts.join('') +
@@ -172,18 +179,31 @@ export function createSettings(storage: StorageRegistry): SettingsRegistry {
 		);
 	}
 
+	// Changing settings before they were loaded would save defaults over the saved ones.
+	function ensureLoaded() {
+		if (!loaded) load();
+	}
+
 	const shared: Omit<SettingsScope, 'field'> = {
 		entry,
 		get: () => current,
-		set: (patch) => replace(checked(patch), { save: true }),
-		update: (change) => replace(checked(change(current)), { save: true }),
+		set(patch) {
+			ensureLoaded();
+			replace(checked(patch), { save: true });
+		},
+		update(change) {
+			ensureLoaded();
+			replace(checked(change(current)), { save: true });
+		},
 		reset(names) {
+			ensureLoaded();
 			const d = defaults();
 			const next: Record<string, unknown> = { ...current };
 			for (const name of names ?? [...fields.keys()]) if (fields.has(name)) next[name] = d[name];
 			replace(next as Values, { save: true });
 		},
 		save() {
+			ensureLoaded();
 			lastSaved = JSON.stringify(current);
 			return storage.saveResult(entry, storage.write(entry, current), { explicit: true });
 		},
