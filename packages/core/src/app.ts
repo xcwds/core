@@ -108,12 +108,36 @@ export type HookRunner = {
 		args: Parameters<Hooks[K]>,
 		options?: { path?: string }
 	): Promise<Exclude<HookResult<K>, void | undefined> | undefined>;
+	/**
+	 * Like `first`, but synchronous for as long as the hooks are: it returns the answer directly
+	 * when every hook up to the one that answers returns a plain value, and a promise once one
+	 * returns a promise. For callers that must decide inline when they can (navigation guards).
+	 */
+	firstNow<K extends HookName>(
+		name: K,
+		args: Parameters<Hooks[K]>,
+		options?: { path?: string }
+	):
+		| Exclude<Awaited<ReturnType<Hooks[K]>>, void | undefined>
+		| undefined
+		| Promise<Exclude<Awaited<ReturnType<Hooks[K]>>, void | undefined> | undefined>;
 	/** Runs every hook and returns the results that aren't `undefined`. */
 	collect<K extends HookName>(
 		name: K,
 		args: Parameters<Hooks[K]>,
 		options?: { path?: string }
 	): Promise<Exclude<HookResult<K>, void | undefined>[]>;
+	/**
+	 * Passes a value through every hook in order, like a waterfall: each gets the latest value
+	 * (plus `rest`) and may return a replacement. A hook that returns nothing (or throws) leaves it
+	 * as it was. Used for `onConfig` and `onManifest`.
+	 */
+	reduce<K extends HookName>(
+		name: K,
+		value: Parameters<Hooks[K]>[0],
+		rest?: Parameters<Hooks[K]> extends [unknown, ...infer R] ? R : [],
+		options?: { path?: string }
+	): Promise<Parameters<Hooks[K]>[0]>;
 	/** The plugins with a `name` hook (for a path, for route hooks). */
 	plugins(name: HookName, options?: { path?: string }): string[];
 };
@@ -434,17 +458,20 @@ function createRunner(getKernel: () => Kernel): HookRunner {
 		try {
 			return { ok: true, value: await (h.fn as (...a: unknown[]) => unknown)(...args) };
 		} catch (cause) {
-			const k = getKernel();
-			const plugin = h.plugin || 'the app';
-			const error = new XcwdsError(
-				codes.HOOK_FAILED,
-				`The ${h.name} hook from "${plugin}" failed: ${cause instanceof Error ? cause.message : String(cause)}`,
-				{ plugin: h.plugin || undefined, cause }
-			);
-			if (h.name === 'onError') k.log.error(error);
-			else await report(k, error, { kind: 'hook', hook: h.name as HookName, plugin });
+			await fail(h, cause);
 			return { ok: false };
 		}
+	}
+	async function fail(h: HookRecord, cause: unknown): Promise<void> {
+		const k = getKernel();
+		const plugin = h.plugin || 'the app';
+		const error = new XcwdsError(
+			codes.HOOK_FAILED,
+			`The ${h.name} hook from "${plugin}" failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+			{ plugin: h.plugin || undefined, cause }
+		);
+		if (h.name === 'onError') k.log.error(error);
+		else await report(k, error, { kind: 'hook', hook: h.name as HookName, plugin });
 	}
 	return {
 		async run(name, args, options = {}) {
@@ -459,6 +486,37 @@ function createRunner(getKernel: () => Kernel): HookRunner {
 			}
 			return undefined;
 		},
+		firstNow(name, args, options = {}) {
+			const list = select(name, options.path);
+			for (let i = 0; i < list.length; i++) {
+				const h = list[i]!;
+				let value: unknown;
+				try {
+					value = (h.fn as (...a: unknown[]) => unknown)(...args);
+				} catch (cause) {
+					void fail(h, cause);
+					continue;
+				}
+				if (typeof (value as PromiseLike<unknown> | undefined)?.then === 'function') {
+					const pending = value as PromiseLike<unknown>;
+					return (async () => {
+						try {
+							const v = await pending;
+							if (v !== undefined) return v;
+						} catch (cause) {
+							await fail(h, cause);
+						}
+						for (const rest of list.slice(i + 1)) {
+							const r = await call(rest, args);
+							if (r.ok && r.value !== undefined) return r.value;
+						}
+						return undefined;
+					})() as never;
+				}
+				if (value !== undefined) return value as never;
+			}
+			return undefined;
+		},
 		async collect(name, args, options = {}) {
 			const out: unknown[] = [];
 			for (const h of select(name, options.path)) {
@@ -466,6 +524,14 @@ function createRunner(getKernel: () => Kernel): HookRunner {
 				if (r.ok && r.value !== undefined) out.push(r.value);
 			}
 			return out as never;
+		},
+		async reduce(name, value, rest, options = {}) {
+			let current: unknown = value;
+			for (const h of select(name, options.path)) {
+				const r = await call(h, [current, ...((rest as unknown[] | undefined) ?? [])]);
+				if (r.ok && r.value !== undefined) current = r.value;
+			}
+			return current as never;
 		},
 		plugins(name, options = {}) {
 			return select(name, options.path).map((h) => h.plugin);

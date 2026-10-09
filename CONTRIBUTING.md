@@ -8,7 +8,7 @@ pnpm build          # build the packages (examples import their output)
 pnpm check          # type check every package and example
 pnpm lint           # prettier + eslint
 pnpm test:unit --run
-pnpm test:e2e       # builds examples/minimal and runs Playwright against it
+pnpm test:e2e       # builds examples/minimal at the root and under /sub, then runs Playwright
 ```
 
 Before pushing, run `pnpm build && pnpm check && pnpm lint && pnpm publint && pnpm test:unit --run`

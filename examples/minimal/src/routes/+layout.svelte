@@ -1,13 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { plugins } from 'virtual:xcwds/client';
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import { App, routeInfo } from '@xcwds/sveltekit';
 
 	let { children } = $props();
-
-	onMount(() => {
-		for (const [hooks, options] of plugins) hooks.onBoot?.(options);
-		document.documentElement.dataset.hydrated = '';
-	});
+	const title = $derived(routeInfo(page.url.pathname)?.title ?? 'Minimal');
 </script>
 
-{@render children()}
+<svelte:head>
+	<title>{title}</title>
+</svelte:head>
+
+<App>
+	<header>
+		<h1>{title}</h1>
+		<a href={resolve('/')}>Home</a>
+	</header>
+	<main>{@render children()}</main>
+</App>

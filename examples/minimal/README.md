@@ -1,9 +1,11 @@
 # examples/minimal
 
-The smallest @xcwds app, and the home of the RFC 0001 spikes. `spike/xcwds.js` is a throwaway
-prototype of `@xcwds/sveltekit` (#10); it goes away when that package exists.
+The smallest @xcwds app, on [`@xcwds/sveltekit`](../../packages/sveltekit) with the example
+plugin [`examples/plugin-hello`](../plugin-hello) (a build hook, a route, a client entry with a
+settings field and a saved value, a worker entry and a page component).
 
 ```sh
-pnpm build
-pnpm test:e2e
+pnpm build        # build/, at the root
+pnpm build:base   # build-sub/, under the base path /sub
+pnpm test:e2e     # both builds, then Playwright against each
 ```

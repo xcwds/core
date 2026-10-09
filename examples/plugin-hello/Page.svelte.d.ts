@@ -1,4 +1,4 @@
 import type { Component } from 'svelte';
 
-declare const Page: Component<{ greeting?: string }>;
+declare const Page: Component<Record<string, never>>;
 export default Page;
