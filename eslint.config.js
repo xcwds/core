@@ -21,7 +21,10 @@ export default defineConfig(
 		rules: {
 			// typescript-eslint recommends turning no-undef off for TypeScript projects.
 			'no-undef': 'off',
-			'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{ argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
+			]
 		}
 	},
 	{

@@ -16,6 +16,10 @@
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
 		},
+		"./build": {
+			"types": "./dist/build/index.d.ts",
+			"default": "./dist/build/index.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"files": [
@@ -28,7 +32,25 @@
 		"publint": "publint"
 	},
 	"devDependencies": {
+		"@resvg/resvg-js": "^2.6.2",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
+	},
+	"peerDependencies": {
+		"@resvg/resvg-js": "^2.6.0"
+	},
+	"peerDependenciesMeta": {
+		"@resvg/resvg-js": {
+			"optional": true
+		}
+	},
+	"keywords": [
+		"pwa",
+		"offline-first",
+		"plugins",
+		"xcwds"
+	],
+	"engines": {
+		"node": ">=22.18"
 	}
 }
