@@ -59,8 +59,27 @@ describe('shared content', () => {
 		expect(fromFragment('#url=https%3A%2F%2Fx.example%2F%3Fa%3D1')).toEqual({
 			joined: 'https://x.example/?a=1'
 		});
+		// Decoded whole, like the app it came from: a raw & or + stays part of the link.
+		expect(fromFragment('#url=https://x.example/?a=1&b=2+3')).toEqual({
+			joined: 'https://x.example/?a=1&b=2+3'
+		});
+		expect(fromFragment('#url=https://x.example/%E0%A4%A')).toEqual({
+			joined: 'https://x.example/%E0%A4%A'
+		});
 		expect(fromFragment('#section')).toBeNull();
+		expect(fromFragment('#url=')).toBeNull();
 		expect(fromFragment('')).toBeNull();
+	});
+
+	it('round-trips fields holding &, +, = and url=', () => {
+		const shared = {
+			joined: 'a&url=b+c https://x.example/?q=a+b&r=1',
+			text: 'a&url=b+c',
+			url: 'https://x.example/?q=a+b&r=1'
+		};
+		const fragment = toFragment(shared);
+		expect(fragment.startsWith('#shared.url=')).toBe(true);
+		expect(fromFragment(fragment)).toEqual(shared);
 	});
 
 	it('prefers the fragment, and falls back to the query', () => {

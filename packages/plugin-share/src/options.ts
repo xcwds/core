@@ -64,25 +64,44 @@ export function fromQuery(params: URLSearchParams): Shared | null {
 	return parts.length ? { joined: parts.join(' '), ...fields } : null;
 }
 
+/** Decodes the shared link, keeping it as written when it isn't valid percent-encoding. */
+function decodeLink(value: string): string {
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		return value;
+	}
+}
+
 /**
- * The fragment a share moves to: `#url=<joined>` (what the iPhone Shortcut opens, too), then
- * each field as `shared.<name>=`.
+ * The fragment a share moves to: each field as `shared.<name>=`, then `url=<joined>` last. The
+ * iPhone Shortcut opens `#url=<link>` directly, and may not encode `&` or `+` in the link, so
+ * everything after `url=` is the link, decoded whole (never split or read as form data).
  */
 export function toFragment(shared: Shared): string {
-	const params = new URLSearchParams({ url: shared.joined });
+	const params = new URLSearchParams();
 	for (const key of FIELDS) {
 		const value = shared[key];
 		if (value) params.set(`shared.${key}`, value);
 	}
-	return `#${params.toString()}`;
+	const fields = params.toString();
+	return `#${fields ? `${fields}&` : ''}url=${encodeURIComponent(shared.joined)}`;
 }
 
 /** What a target page's fragment holds, or null when it isn't a share. */
 export function fromFragment(hash: string): Shared | null {
-	if (!hash.startsWith('#url=')) return null;
-	const params = new URLSearchParams(hash.slice(1));
-	const joined = params.get('url') ?? '';
+	let prefix = '';
+	let link: string;
+	if (hash.startsWith('#url=')) link = hash.slice('#url='.length);
+	else if (hash.startsWith('#shared.') && hash.includes('&url=')) {
+		const at = hash.indexOf('&url=');
+		prefix = hash.slice(1, at);
+		link = hash.slice(at + '&url='.length);
+	} else return null;
+	const joined = decodeLink(link).trim();
+	if (!joined) return null;
 	const shared: Shared = { joined };
+	const params = new URLSearchParams(prefix);
 	for (const key of FIELDS) {
 		const value = params.get(`shared.${key}`);
 		if (value) shared[key] = value;

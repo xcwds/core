@@ -40,7 +40,7 @@ private pages, such as the share target if what it shows is private.
 With `target`, the manifest gets a `share_target` (GET, `url`, `text` and `title`), so Android
 lists the app in its share sheet. A share opens `target?url=…&text=…&title=…`. The service
 worker answers that request itself, before it leaves the device, with a `303` to the same page
-with the fields in the fragment (`#url=<joined>&shared.url=…&shared.text=…&shared.title=…`),
+with the fields in the fragment (`#shared.url=…&shared.text=…&shared.title=…&url=<joined>`, `url` last),
 which browsers never send to a server. The target page reads it and clears the address:
 
 ```svelte
@@ -57,7 +57,8 @@ which browsers never send to a server. The target page reads it and clears the a
 `listen` calls back now and on every later share into an open tab (Safari may only change the
 hash), and replaces the address with the bare page so nothing stays in history. `joined` is
 every field joined with spaces (share sheets often put the link in `text`); `url`, `text` and
-`title` are the fields as sent. An iPhone Shortcut can open `target#url=<encoded link>` directly.
+`title` are the fields as sent. An iPhone Shortcut can open `target#url=<link>` directly: everything after `url=` is the link,
+decoded whole, so a raw `&` or `+` in it survives.
 
 The first share after install can open the target before the worker controls the page (Android
 may open it cold). Then the page reads the query instead and clears it the same way, but that

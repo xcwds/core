@@ -159,8 +159,9 @@ for (const { name, dir, base } of targets) {
 				await gotoHydrated(page, url('/inbox#url=https%3A%2F%2Fx.example%2F%3Fa%3D1'));
 				await expect(page.getByTestId('shared')).toHaveText('https://x.example/?a=1');
 				expect(page.url()).toBe(url('/inbox'));
-				await page.evaluate(() => (location.hash = '#url=again'));
-				await expect(page.getByTestId('shared')).toHaveText('again');
+				// A link the Shortcut didn't encode keeps its & and +.
+				await page.evaluate(() => (location.hash = '#url=https://x.example/?a=1&b=2+3'));
+				await expect(page.getByTestId('shared')).toHaveText('https://x.example/?a=1&b=2+3');
 				expect(page.url()).toBe(url('/inbox'));
 			});
 		});
