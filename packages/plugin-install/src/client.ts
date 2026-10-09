@@ -39,7 +39,10 @@ export type AppInstall = {
 	readonly state: InstallState;
 	/** Calls `listener` now and on every change; returns a function that stops it. */
 	subscribe(listener: (state: InstallState) => void): () => void;
-	/** Shows the browser's install dialog (call it from a tap); resolves to what the user chose. */
+	/**
+	 * Shows the browser's install dialog (call it from a tap); resolves to what the user chose,
+	 * or `'unavailable'` when there is no prompt or the browser refused to show it.
+	 */
 	prompt(): Promise<'accepted' | 'dismissed' | 'unavailable'>;
 };
 
@@ -77,7 +80,16 @@ export default definePlugin(
 				// A prompt can be shown once.
 				deferred = null;
 				set({ available: false });
-				await event.prompt();
+				try {
+					await event.prompt();
+				} catch {
+					// Not shown (no user gesture): keep it for the next tap, unless a newer one came.
+					if (!deferred && !state.installed) {
+						deferred = event;
+						set({ available: true });
+					}
+					return 'unavailable';
+				}
 				const { outcome } = await event.userChoice;
 				if (outcome === 'accepted') set({ installed: true });
 				return outcome;

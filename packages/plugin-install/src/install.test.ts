@@ -113,6 +113,19 @@ describe('the page', () => {
 		expect(app.install!.state.available).toBe(true);
 	});
 
+	it('keeps a prompt the browser refused to show (no user gesture)', async () => {
+		const browser = fakeBrowser();
+		const app = await buildTestApp({ plugins: [[client, {}]] });
+		const event = promptEvent();
+		event.prompt = () => Promise.reject(new DOMException('No gesture', 'NotAllowedError'));
+		browser.fire(event);
+		expect(await app.install!.prompt()).toBe('unavailable');
+		expect(app.install!.state.available).toBe(true);
+		event.prompt = async () => void event.shown++;
+		expect(await app.install!.prompt()).toBe('accepted');
+		expect(event.shown).toBe(1);
+	});
+
 	it('uses a prompt the head script caught before the app started', async () => {
 		const browser = fakeBrowser();
 		// The head script, as the build adds it.
