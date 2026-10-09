@@ -2,6 +2,7 @@ import hello from '@xcwds-example/plugin-hello';
 import { defineConfig } from '@xcwds/core';
 import install from '@xcwds/plugin-install';
 import offline from '@xcwds/plugin-offline';
+import share from '@xcwds/plugin-share';
 import shell from '@xcwds/plugin-shell';
 import theme from '@xcwds/plugin-theme';
 import update from '@xcwds/plugin-update';
@@ -21,6 +22,8 @@ export default defineConfig({
 			]
 		}),
 		hello({ greeting: 'hi' }),
+		// What others share arrives at /inbox; it stays private, so it has no Share button.
+		share({ target: '/inbox', exclude: ['/inbox'] }),
 		offline(),
 		update(),
 		theme(),

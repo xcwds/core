@@ -59,7 +59,7 @@ close it yourself.
 
 The app is the kernel's, plus `navigate(path)` (an app path starting with `/`, without the
 base; resolves to `{ path, redirects, cancelled }`), `path` (as navigated to, so a trailing
-slash reaches hooks as in the browser), `clock`, `shared`, `errors`, `openTab()`, `settle()`
+slash reaches hooks as in the browser), `clock`, `sharedStorage`, `errors`, `openTab()`, `settle()`
 (waits for other tabs' `storage` events, which arrive asynchronously as in a browser) and
 `close()`.
 
@@ -114,7 +114,8 @@ expect(await auditTapTargets(page)).toEqual([]); // every control at least 44×4
   Inline text links are exempt, and a checkbox or radio button counts its label.
 - **`serveStatic(dir, { base })`** serves a build the way GitHub Pages does: `/page` finds
   `page.html`, unknown paths get `404.html` with a 404, and with a `base` nothing outside it
-  exists. Files are read on each request and never from outside `dir`.
+  exists. Files are read on each request and never from outside `dir`. `requests` lists every
+  path and query the server received, e.g. to check that something never reached it.
 - **`serveDeployment(dir, { base })`** serves a copy of a build. Each `deployNewVersion(marker)`
   stamps every page with `<meta name="test-version">` and gives the service worker and
   `_app/version.json` a new version, so the browser finds a new worker. `pageVersion(page)` reads

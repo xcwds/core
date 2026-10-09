@@ -58,6 +58,8 @@ export type StaticServer = {
 	origin: string;
 	/** The full URL of an app path (`/hello` → `<origin><base>/hello`). */
 	url(path: string): string;
+	/** Every request's path and query as the server received them, oldest first. */
+	readonly requests: readonly string[];
 	close(): Promise<void>;
 };
 
@@ -73,7 +75,9 @@ export async function serveStatic(
 	{ base = '' }: { base?: string } = {}
 ): Promise<StaticServer> {
 	checkBase(base);
+	const requests: string[] = [];
 	const server = createServer(async (req, res) => {
+		requests.push(req.url ?? '/');
 		try {
 			const pathname = new URL(req.url ?? '/', 'http://x').pathname;
 			if (base && pathname !== base && !pathname.startsWith(`${base}/`))
@@ -100,6 +104,7 @@ export async function serveStatic(
 	return {
 		origin,
 		url: (path) => `${origin}${base}${path.startsWith('/') ? path : `/${path}`}`,
+		requests,
 		close: () =>
 			new Promise((resolve) => {
 				server.close(() => resolve());
