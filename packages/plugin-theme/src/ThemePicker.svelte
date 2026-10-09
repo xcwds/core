@@ -13,6 +13,9 @@
 	}: { legend?: string; labels?: Partial<Record<Theme, string>> } = $props();
 	const names = $derived({ system: 'System', light: 'Light', dark: 'Dark', ...labels });
 	const themes: Theme[] = ['system', 'light', 'dark'];
+	// Its own radio group, so two pickers on one page don't uncheck each other.
+	const uid = $props.id();
+	const group = `xcwds-theme-${uid}`;
 </script>
 
 <fieldset class="xcwds-theme" data-testid="theme-picker">
@@ -21,7 +24,7 @@
 		<label>
 			<input
 				type="radio"
-				name="xcwds-theme"
+				name={group}
 				value={theme}
 				checked={settings.current.theme === theme}
 				disabled={!settings.ready}
