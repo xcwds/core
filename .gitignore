@@ -1,6 +1,6 @@
 node_modules
 dist
-build
+examples/*/build
 .svelte-kit
 .xcwds
 test-results

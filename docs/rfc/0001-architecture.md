@@ -144,7 +144,8 @@ script. Removing the hash from `script-src` makes the test fail, so the CSP real
 
 Fastify scopes decorators and hooks by a context tree. Here a plugin's child context also has a
 route `prefix` (route-bound hooks such as `onNavigate` only fire under it) and a storage
-namespace (`app:<plugin>:<key>`).
+namespace (`app:<plugin>:<key>`). One namespace belongs to one plugin: a second plugin that derives
+or asks for the same one fails to load, since sharing would mix their data and migration versions.
 
 This is API hygiene, not isolation. Every script on the origin can read all of `localStorage`, so
 **plugins are trusted code**. The docs say so, and #22 lists each plugin's declared network use.
