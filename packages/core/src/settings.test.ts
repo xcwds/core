@@ -185,6 +185,27 @@ describe('settings', () => {
 		expect(() =>
 			scope.field('odd', { default: true, parse: bool, control: { type: 'slider' } as never })
 		).toThrow(/unknown control/);
+		const bad: unknown[] = [
+			{ type: 'choice' },
+			{ type: 'choice', options: [] },
+			{ type: 'choice', options: [{ value: {}, label: 'x' }] },
+			{ type: 'switches', options: [{ key: 'a' }] },
+			{ type: 'number', min: 0 },
+			{ type: 'number', min: 5, max: 1 },
+			{ type: 'number', min: 0, max: 1, step: 0 },
+			{ type: 'number', min: 0, max: 1, unit: 3 },
+			null
+		];
+		bad.forEach((control, i) =>
+			expect(() =>
+				scope.field(`bad${i}`, { default: true, parse: bool, control: control as never })
+			).toThrow(/setting "bad\d+" (needs|has an unknown)/)
+		);
+		scope.field('n', {
+			default: 1,
+			parse: (v) => (typeof v === 'number' ? v : undefined),
+			control: { type: 'number', min: 0, max: 2, step: 0.5, unit: 'x' }
+		});
 	});
 
 	describe('pre-paint script', () => {

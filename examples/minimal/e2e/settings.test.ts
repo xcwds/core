@@ -47,7 +47,12 @@ for (const { name, dir, base } of targets) {
 			await gotoHydrated(page, url('/settings'));
 			const appearance = page.getByTestId('settings-appearance');
 			await expect(appearance.getByRole('heading')).toHaveText('Appearance');
-			await appearance.getByRole('radio', { name: 'Dark' }).click();
+			await appearance.getByRole('radio', { name: 'Light' }).click();
+			expect(await scheme(page)).toBe('light');
+			// A real radio group: arrow keys move the choice.
+			await expect(appearance.getByRole('radio', { name: 'Light' })).toBeFocused();
+			await page.keyboard.press('ArrowRight');
+			await expect(appearance.getByRole('radio', { name: 'Dark' })).toBeChecked();
 			expect(await scheme(page)).toBe('dark');
 			// The shell's own picker for its nav setting.
 			await expect(appearance.getByTestId('nav-picker')).toBeVisible();

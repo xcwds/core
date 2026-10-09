@@ -30,6 +30,48 @@ export type Control =
 
 const CONTROLS = ['choice', 'switch', 'number', 'switches'];
 
+const label = (v: unknown) => typeof v === 'string' && v.trim() !== '';
+const optionList = (v: unknown, ok: (o: Record<string, unknown>) => boolean) =>
+	Array.isArray(v) &&
+	v.length > 0 &&
+	v.every((o) => typeof o === 'object' && o !== null && ok(o as Record<string, unknown>));
+
+/** What's wrong with a control (finishing "The setting "x" …"), or undefined. */
+function controlProblem(input: unknown): string | undefined {
+	const c = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>;
+	switch (c.type) {
+		case 'switch':
+			return undefined;
+		case 'choice':
+			return optionList(
+				c.options,
+				(o) => label(o.label) && ['string', 'number', 'boolean'].includes(typeof o.value)
+			)
+				? undefined
+				: 'needs choice `options`, each with a `value` (string, number or boolean) and a `label`';
+		case 'switches':
+			return optionList(
+				c.options,
+				(o) =>
+					label(o.key) && label(o.label) && (o.hint === undefined || typeof o.hint === 'string')
+			)
+				? undefined
+				: 'needs switch `options`, each with a `key` and a `label`';
+		case 'number': {
+			const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+			if (!finite(c.min) || !finite(c.max) || c.min > c.max)
+				return 'needs a number control with `min` up to `max`';
+			if (c.step !== undefined && !(finite(c.step) && c.step > 0))
+				return 'needs a positive number control `step`';
+			if (c.unit !== undefined && typeof c.unit !== 'string')
+				return 'needs a string number control `unit`';
+			return undefined;
+		}
+		default:
+			return `has an unknown control (one of ${CONTROLS.join(', ')})`;
+	}
+}
+
 export type FieldDefinition<T> = {
 	default: T;
 	/** Returns the value if `raw` is valid, otherwise `undefined` (the default is used). */
@@ -276,15 +318,15 @@ export function createSettings(storage: StorageRegistry): SettingsRegistry {
 							`The setting "${name}" needs a parse function that accepts its default.`,
 							{ plugin: plugin || undefined }
 						);
-					if (
-						definition.control !== undefined &&
-						!CONTROLS.includes((definition.control as { type?: string } | null)?.type ?? '')
-					)
-						throw new XcwdsError(
-							codes.SETTINGS_FIELD_INVALID,
-							`The setting "${name}" has an unknown control (one of ${CONTROLS.join(', ')}).`,
-							{ plugin: plugin || undefined }
-						);
+					if (definition.control !== undefined) {
+						const problem = controlProblem(definition.control);
+						if (problem)
+							throw new XcwdsError(
+								codes.SETTINGS_FIELD_INVALID,
+								`The setting "${name}" ${problem}.`,
+								{ plugin: plugin || undefined }
+							);
+					}
 					fields.set(name, { ...definition, plugin });
 					// A field added after loading reads its saved value now.
 					const saved = loaded ? storage.read(entry) : undefined;

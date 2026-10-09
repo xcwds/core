@@ -7,9 +7,14 @@
 	const uid = $props.id();
 	const value = $derived(settings.current[field.name]);
 	const set = (v: unknown) => settings.set({ [field.name]: v });
+	/** `n` rounded to as many decimals as `step` has, so 0.1 steps don't drift. */
+	const snap = (n: number, step: number) => {
+		const places = (String(step).split('.')[1] ?? '').length;
+		return Number(n.toFixed(Math.min(places, 20)));
+	};
 
 	const segment = (on: boolean) =>
-		`min-h-11 rounded-xl px-3 py-2 text-sm font-medium ${
+		`relative flex min-h-11 cursor-pointer items-center justify-center rounded-xl px-3 py-2 text-center text-sm font-medium ${
 			on
 				? 'bg-(--xcwds-shell-accent) text-white'
 				: 'bg-(--xcwds-shell-card) hover:bg-(--xcwds-shell-hover-bg)'
@@ -19,26 +24,30 @@
 </script>
 
 {#if field.control?.type === 'choice'}
-	<div class="flex flex-col gap-1">
-		<span id="{uid}-label" class="font-medium">{field.label}</span>
+	<fieldset class="flex flex-col gap-1">
+		<legend class="font-medium">{field.label}</legend>
 		{#if field.hint}<span class="text-sm text-(--xcwds-shell-muted)">{field.hint}</span>{/if}
 		<div
 			class="grid gap-2"
 			style:grid-template-columns="repeat({field.control.options.length}, minmax(0, 1fr))"
-			role="radiogroup"
-			aria-labelledby="{uid}-label"
 		>
-			{#each field.control.options as option (option.value)}
-				<button
-					type="button"
-					role="radio"
-					aria-checked={value === option.value}
-					class={segment(value === option.value)}
-					onclick={() => set(option.value)}>{option.label}</button
+			{#each field.control.options as option, i (i)}
+				<label
+					class="{segment(
+						value === option.value
+					)} has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(--xcwds-shell-focus)"
 				>
+					<input
+						type="radio"
+						class="absolute inset-0 cursor-pointer appearance-none opacity-0"
+						name="xcwds-setting-{uid}"
+						checked={value === option.value}
+						onchange={() => set(option.value)}
+					/>{option.label}
+				</label>
 			{/each}
 		</div>
-	</div>
+	</fieldset>
 {:else if field.control?.type === 'switch'}
 	<label class="flex min-h-11 items-center justify-between gap-3">
 		<span class="flex flex-col">
@@ -68,7 +77,7 @@
 				class={small}
 				aria-label="Less {field.label}"
 				disabled={n - step < c.min}
-				onclick={() => set(Math.max(c.min, n - step))}>−</button
+				onclick={() => set(Math.max(c.min, snap(n - step, step)))}>−</button
 			>
 			<output class="min-w-14 text-center text-lg tabular-nums" aria-live="polite"
 				>{n}{c.unit ? ` ${c.unit}` : ''}</output
@@ -78,7 +87,7 @@
 				class={small}
 				aria-label="More {field.label}"
 				disabled={n + step > c.max}
-				onclick={() => set(Math.min(c.max, n + step))}>+</button
+				onclick={() => set(Math.min(c.max, snap(n + step, step)))}>+</button
 			>
 		</div>
 	</div>
