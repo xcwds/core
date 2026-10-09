@@ -204,6 +204,12 @@ for (const { name, dir, base } of targets) {
 			// Above the tab bar.
 			const [a, b] = [(await toast.boundingBox())!, (await nav(page, 'tabs').boundingBox())!];
 			expect(a.y + a.height).toBeLessThanOrEqual(b.y);
+			// Beside the toast, taps reach the page, not the stack's full-width row.
+			const beside = await page.evaluate(
+				({ x, y }) => !!document.elementFromPoint(x, y)?.closest('[data-shell-notices]'),
+				{ x: a.x - 24, y: a.y + a.height / 2 }
+			);
+			expect(beside).toBe(false);
 			await toast.click();
 			await expect(toast).toHaveCount(0);
 		});

@@ -16,7 +16,7 @@
 </script>
 
 <main class="page-wide flex flex-col gap-6 pt-2 pb-4 sm:pb-8" data-testid="home">
-	{#each blocks as block, i (i)}
+	{#each blocks as block (block)}
 		<block.component {...block.props} />
 	{:else}
 		<section class="flex flex-col gap-1 py-6" data-testid="home-brand">

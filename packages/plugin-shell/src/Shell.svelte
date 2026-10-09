@@ -29,7 +29,7 @@
 	const app = useApp();
 	const shell = app.shell;
 	const sections = shell?.sections ?? [];
-	let actions = $state<readonly Slot[]>([]);
+	let actions = $state<readonly Slot[]>(shell?.header.list() ?? []);
 	$effect(() => shell?.header.subscribe((list) => (actions = list)));
 
 	const path = $derived(appPath(page.url.pathname) ?? page.url.pathname);
@@ -118,7 +118,7 @@
 				{#if info.emoji}<span aria-hidden="true">{info.emoji}</span>{/if}
 				{info.title}
 			</h1>
-			{#each actions as action, i (i)}
+			{#each actions as action (action)}
 				<action.component {...action.props} />
 			{/each}
 			{#if nav}
@@ -148,12 +148,12 @@
 	</div>
 
 	<!-- Toasts and notices stack above the tab bar (top right on wider screens, clear of the
-	     page title). -->
+	     page title). Only their links and buttons take taps; the rest passes through to the page. -->
 	<div
 		data-shell-notices
 		class="pointer-events-none fixed inset-x-0 {nav
 			? 'bottom-[calc(4.25rem+env(safe-area-inset-bottom))]'
-			: 'bottom-[calc(1rem+env(safe-area-inset-bottom))]'} z-20 flex flex-col items-center gap-2 px-4 md:top-[calc(1rem+env(safe-area-inset-top))] md:right-[calc(1rem+env(safe-area-inset-right))] md:bottom-auto md:left-auto md:w-full md:max-w-md md:items-end md:px-0 [&>*]:pointer-events-auto"
+			: 'bottom-[calc(1rem+env(safe-area-inset-bottom))]'} z-20 flex flex-col items-center gap-2 px-4 md:top-[calc(1rem+env(safe-area-inset-top))] md:right-[calc(1rem+env(safe-area-inset-right))] md:bottom-auto md:left-auto md:w-full md:max-w-md md:items-end md:px-0 [&_a]:pointer-events-auto [&_button]:pointer-events-auto"
 	>
 		<Toaster />
 		{@render notices?.()}
