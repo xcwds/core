@@ -1,0 +1,15 @@
+/*
+ * Lets Tailwind see the classes this package's components use, and colours a pinned tool's star.
+ * Import it after Tailwind and `@xcwds/plugin-shell/styles.css` (whose colours it uses):
+ *   @import '@xcwds/plugin-tools/styles.css';
+ */
+@source './';
+
+@layer base {
+	:root {
+		--xcwds-tools-pinned-bg: var(--color-amber-200);
+	}
+	:root[data-color-scheme='dark'] {
+		--xcwds-tools-pinned-bg: var(--color-amber-800);
+	}
+}

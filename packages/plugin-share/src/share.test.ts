@@ -114,8 +114,17 @@ describe('the Share button', () => {
 		expect(at('/', '/sub')!.url).toBe('https://a.example/sub/');
 	});
 
-	it('never shares excluded pages', () => {
+	it('never shares excluded or private pages', () => {
 		expect(at('/settings')).toBeNull();
+		const options = {
+			origin: 'https://a.example',
+			base: '',
+			title: 'Cycle',
+			appName: 'A',
+			tagline: ''
+		};
+		expect(shareData('/utils/cycle', { ...options, exclude: [], private: true })).toBeNull();
+		expect(shareData('/utils/cycle', { ...options, exclude: [], private: false })).not.toBeNull();
 		expect(at('/private/notes')).toBeNull();
 		expect(at('/privately')).not.toBeNull();
 	});

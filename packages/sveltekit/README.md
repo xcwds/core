@@ -134,7 +134,8 @@ export default definePlugin((app, options) => { ... });
 ```
 
 Its pages are thin route files in the app that render a component the plugin exports
-(decision 2). [`examples/plugin-hello`](../../examples/plugin-hello) has all three.
+(decision 2). A route is `{ path, title, emoji?, parent?, width?, private? }`; `private: true`
+marks a personal page that plugins keep out of what they share or list. [`examples/plugin-hello`](../../examples/plugin-hello) has all three.
 
 ## Dev, preview and static hosting
 

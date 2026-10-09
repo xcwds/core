@@ -1,7 +1,7 @@
 /**
- * The page entry. Adds the `nav` setting (applied before first paint), toasts (`app.toast`) and
- * `app.shell`: the sections from the config and the places other plugins add components to
- * (Home blocks and header actions).
+ * The page entry. Adds the `nav` setting (applied before first paint), toasts (`app.toast`, which
+ * also report failed saves) and `app.shell`: the sections from the config and the places other
+ * plugins add components to (Home blocks and header actions).
  *
  * Imported at prerender too, so it only touches browser globals once the app boots.
  */
@@ -71,6 +71,10 @@ declare module '@xcwds/core' {
 	}
 }
 
+/** What the shell says when something couldn't be saved (`app.storage.onSaveFailure`). */
+export const SAVE_FAILED =
+	"Couldn't save on this device: storage is full or blocked. Download a backup from Settings.";
+
 /** At most this many toasts show at once; older ones go first. */
 const MAX_TOASTS = 3;
 
@@ -139,7 +143,7 @@ export default definePlugin(
 				dismiss
 			}
 		} satisfies AppShell);
-		app.decorate('toast', (message: string, { action, durationMs }: ToastOptions = {}) => {
+		const toast = (message: string, { action, durationMs }: ToastOptions = {}) => {
 			const id = nextId++;
 			const next = [...toasts, { id, message, ...(action ? { action } : {}) }];
 			for (const old of next.splice(0, Math.max(0, next.length - MAX_TOASTS))) {
@@ -151,18 +155,27 @@ export default definePlugin(
 				id,
 				setTimeout(() => dismiss(id), durationMs ?? (action ? 8000 : 3000))
 			);
-		});
+		};
+		app.decorate('toast', toast);
 
-		let stop: (() => void) | undefined;
+		let stops: (() => void)[] = [];
 		app.addHook('onBoot', () => {
 			const root = document.documentElement;
 			const apply = () => applyNav(app.settings.get().nav, root);
 			apply();
-			stop = app.settings.subscribe(apply);
+			stops.push(app.settings.subscribe(apply));
+			// A failed save is reported once per entry (every time for an action that confirms it),
+			// and never stacked.
+			stops.push(
+				app.storage.onSaveFailure(() => {
+					if (!toasts.some((t) => t.message === SAVE_FAILED))
+						toast(SAVE_FAILED, { durationMs: 6000 });
+				})
+			);
 		});
 		app.addHook('onClose', () => {
-			stop?.();
-			stop = undefined;
+			for (const stop of stops) stop();
+			stops = [];
 			for (const timer of timers.values()) clearTimeout(timer);
 			timers.clear();
 		});

@@ -1,8 +1,8 @@
 <script lang="ts">
 	/**
-	 * The Home page (`/`): the blocks plugins add with `app.shell.home.add()`, in order, or the
-	 * app's name and tagline while there are none. Render it from `src/routes/+page.svelte`;
-	 * `children` come after.
+	 * The Home page (`/`): the app's name and tagline, then the blocks plugins add with
+	 * `app.shell.home.add()`, in order. Render it from `src/routes/+page.svelte`; `children` come
+	 * after.
 	 */
 	import { brand, useApp } from '@xcwds/sveltekit';
 	import type { Snippet } from 'svelte';
@@ -16,13 +16,12 @@
 </script>
 
 <main class="page-wide flex flex-col gap-6 pt-2 pb-4 sm:pb-8" data-testid="home">
+	<section class="flex flex-col gap-1 py-6" data-testid="home-brand">
+		<p class="text-2xl font-semibold">{brand.name}</p>
+		{#if brand.tagline}<p class="text-(--xcwds-shell-muted)">{brand.tagline}</p>{/if}
+	</section>
 	{#each blocks as block (block)}
 		<block.component {...block.props} />
-	{:else}
-		<section class="flex flex-col gap-1 py-6" data-testid="home-brand">
-			<p class="text-2xl font-semibold">{brand.name}</p>
-			{#if brand.tagline}<p class="text-(--xcwds-shell-muted)">{brand.tagline}</p>{/if}
-		</section>
 	{/each}
 	{@render children?.()}
 </main>

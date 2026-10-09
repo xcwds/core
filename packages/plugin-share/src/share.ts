@@ -5,7 +5,7 @@ export type ShareData = { title: string; text: string; url: string };
 
 /**
  * What the header's Share button sends for a page, or null when it shouldn't be shared (an
- * excluded path). The link is the origin, base path and path only: never the query or hash,
+ * excluded path, or a private page in the route registry). The link is the origin, base path and path only: never the query or hash,
  * which can hold what you typed (a link pasted into a tool, a share received as `#url=…`).
  */
 export function shareData(
@@ -14,6 +14,7 @@ export function shareData(
 		origin,
 		base,
 		title,
+		private: personal = false,
 		appName,
 		tagline,
 		exclude
@@ -22,13 +23,15 @@ export function shareData(
 		base: string;
 		/** The page's title from the route registry, if it has one. */
 		title: string | undefined;
+		/** The route is private (e.g. a personal tool). */
+		private?: boolean;
 		appName: string;
 		tagline: string;
 		exclude: readonly string[];
 	}
 ): ShareData | null {
 	const clean = path.replace(/\/+$/, '') || '/';
-	if (exclude.some((prefix) => under(clean, prefix))) return null;
+	if (personal || exclude.some((prefix) => under(clean, prefix))) return null;
 	if (clean === '/')
 		return {
 			title: appName,

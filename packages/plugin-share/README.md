@@ -30,8 +30,9 @@ In the installed app there's no browser toolbar to share from, so the shell's he
 Share button (with `@xcwds/plugin-shell`). It shares the page's title, "Title on App" (Home:
 "App: tagline") and its link: origin, base path and path only, never the query or hash, which can
 hold what you typed. It opens the system share sheet, or copies the link (with a toast) where
-there is none. It doesn't show in a browser tab, on excluded paths or on error pages. Exclude
-private pages, such as the share target if what it shows is private.
+there is none. It doesn't show in a browser tab, on excluded paths, on routes marked `private`
+(such as private tools from `@xcwds/plugin-tools`) or on error pages. Exclude other private
+pages, such as the share target if what it shows is private.
 
 `app.share.share({ title, text, url })` does the same from your own button.
 

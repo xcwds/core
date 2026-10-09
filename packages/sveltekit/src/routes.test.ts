@@ -52,6 +52,9 @@ describe('the route registry', () => {
 			'"narrow" or "wide"'
 		);
 		expect(() => routes.add({ path: '/b', title: 'B', parent: 'x' })).toThrow('parent');
+		expect(() => routes.add({ path: '/b', title: 'B', private: 'yes' as never })).toThrow(
+			'private of "/b"'
+		);
 	});
 
 	it("records each plugin's name and prefix through app.route()", async () => {

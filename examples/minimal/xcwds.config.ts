@@ -5,6 +5,7 @@ import offline from '@xcwds/plugin-offline';
 import share from '@xcwds/plugin-share';
 import shell from '@xcwds/plugin-shell';
 import theme from '@xcwds/plugin-theme';
+import tools from '@xcwds/plugin-tools';
 import update from '@xcwds/plugin-update';
 
 export default defineConfig({
@@ -18,7 +19,33 @@ export default defineConfig({
 		shell({
 			sections: [
 				{ path: '/', label: 'Home', emoji: '🏠' },
-				{ path: '/hello', label: 'Hello', emoji: '👋' }
+				{ path: '/hello', label: 'Hello', emoji: '👋' },
+				{ path: '/utils', label: 'Utils', emoji: '🧰' }
+			]
+		}),
+		tools({
+			path: '/utils',
+			title: 'Utils',
+			emoji: '🧰',
+			items: [
+				{
+					path: '/utils/coffee',
+					emoji: '☕',
+					name: 'Coffee Timer',
+					blurb: 'A 90-second countdown.',
+					shortcut: true
+				},
+				{ path: '/utils/notes', emoji: '📝', name: 'Notes', blurb: 'A scratch pad.' },
+				{ path: '/utils/dice', emoji: '🎲', name: 'Dice', blurb: 'Roll a die.' },
+				{ path: '/utils/units', emoji: '📏', name: 'Units', blurb: 'Convert lengths.' },
+				// Private: never under Recently used, shared or a shortcut; named discreetly.
+				{
+					path: '/utils/journal',
+					emoji: '📓',
+					name: 'Journal',
+					blurb: 'Private notes.',
+					private: true
+				}
 			]
 		}),
 		hello({ greeting: 'hi' }),
