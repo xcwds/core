@@ -74,13 +74,16 @@ export default definePlugin(
 			seen = next;
 			for (const listener of listeners) listener(seen);
 		};
-		const load = () => {
+		/**
+		 * Reads the saved marker. Nothing saved means everything so far counts as seen: a fresh
+		 * install saves that on boot (so a later update has something to compare with), but a
+		 * clear doesn't, so clearing data leaves it cleared until the next start.
+		 */
+		const load = (onBoot: boolean) => {
 			const saved = app.storage.read(entry);
-			if (saved === undefined) {
-				// A fresh install (or cleared data): everything so far counts as seen.
-				if (latest > 0) app.storage.write(entry, latest);
-				set(latest);
-			} else set(saved);
+			if (saved !== undefined) return set(saved);
+			if (onBoot && latest > 0) app.storage.write(entry, latest);
+			set(latest);
 		};
 		let booted = false;
 		const stops: (() => void)[] = [];
@@ -103,10 +106,10 @@ export default definePlugin(
 
 		app.addHook('onBoot', () => {
 			booted = true;
-			load();
+			load(true);
 			stops.push(
 				app.storage.onChange((key) => {
-					if (key === null || key === entry.key) load();
+					if (key === null || key === entry.key) load(false);
 				})
 			);
 			// With @xcwds/plugin-settings, What's new is a section of its page. Loaded lazily: the

@@ -84,6 +84,18 @@ describe('the page', () => {
 		expect(storage.get('app:changelog:seen')).toBe('3');
 	});
 
+	it('stays cleared when data is cleared, until the next start', async () => {
+		const app = await buildTestApp({ plugins: [[client, { entries: notes(2, 1) }]] });
+		const backing = app.sharedStorage.backing;
+		expect(backing.get('app:changelog:seen')).toBe('2');
+		app.storage.clear();
+		expect(backing.get('app:changelog:seen')).toBeNull();
+		expect(app.changelog!.seen()).toBe(2);
+		const next = await app.openTab();
+		expect(next.changelog!.seen()).toBe(2);
+		expect(backing.get('app:changelog:seen')).toBe('2');
+	});
+
 	it('follows another tab marking them seen', async () => {
 		const app = await buildTestApp(
 			{ plugins: [[client, { entries: notes(2, 1), storageKey: 'app:settings:whats-new-seen' }]] },
