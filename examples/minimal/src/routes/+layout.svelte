@@ -26,6 +26,15 @@
 </App>
 
 <style>
+	/* @xcwds/plugin-theme sets data-color-scheme on <html> before first paint. */
+	:global(html) {
+		background: #fff;
+		color: #111827;
+	}
+	:global(html[data-color-scheme='dark']) {
+		background: #030712;
+		color: #f9fafb;
+	}
 	/* Tap targets of at least 44px (`auditTapTargets` in the e2e tests checks every page). */
 	:global(button) {
 		min-height: 44px;

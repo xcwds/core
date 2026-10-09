@@ -144,6 +144,11 @@ inline `<script>` after the manifest, icon and iOS tags, and replaces a `%xcwds.
 placeholder in `app.html` using `transformPageChunk`. Handle hooks run at prerender, including
 for adapter-static's `404.html` fallback.
 
+`onHead` snippets run before the settings' snippets, so a build entry can hand build-time data
+to its field's `prePaint` (`@xcwds/plugin-theme` (#14) sets the brand's theme colours this way).
+Page code can't `eval` a snippet under the hashed CSP, so a plugin that applies a setting again
+at runtime ships the same logic as a function too, and tests that the two agree.
+
 The placeholder goes **after** `%sveltekit.head%`, because SvelteKit puts its CSP `<meta>` first
 in that output and a `<meta>` policy only covers what follows it. `withXcwds()` sets SvelteKit's
 CSP in hash mode; SvelteKit hashes its own inline boot script, and `handle` adds the pre-paint
