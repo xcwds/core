@@ -49,7 +49,8 @@ app.greet('you'); // "Hello, you"
 ## Hooks
 
 `app.addHook(name, fn)` for the build, runtime and worker families listed in `hooks.ts`.
-`app.hooks.run`, `.first` (first answer wins, like `onFetch`) and `.collect` run them; route hooks
+`app.hooks.run`, `.first` (first answer wins, like `onFetch`), `.collect` and `.reduce` (each
+hook may replace a value, like `onManifest`) run them; route hooks
 (`onNavigate`, `afterNavigate`, `onFetch`) only run for paths under the adding plugin's prefix.
 A hook that throws is reported to `onError` hooks (or `app.log`) and the rest still run.
 Errors are only ever logged locally.

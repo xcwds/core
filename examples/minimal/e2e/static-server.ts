@@ -39,14 +39,19 @@ async function resolveFile(dir: string, pathname: string): Promise<string | null
 /**
  * Serves a build directory the way GitHub Pages does: `/page` finds `page.html`, and unknown
  * paths get `404.html` with a 404 status. Unlike `vite preview`, nothing is rendered on the fly.
- * Resolves to the server's origin and a function that stops it.
+ * With a `base` (a project site, `user.github.io/repo`), the build is served under it and
+ * nothing else exists. Resolves to the server's origin and a function that stops it.
  */
 export async function serveStatic(
-	dir: string
+	dir: string,
+	{ base = '' }: { base?: string } = {}
 ): Promise<{ origin: string; close: () => Promise<void> }> {
 	const server = createServer(async (req, res) => {
 		try {
-			const file = await resolveFile(dir, new URL(req.url ?? '/', 'http://x').pathname);
+			const pathname = new URL(req.url ?? '/', 'http://x').pathname;
+			if (base && pathname !== base && !pathname.startsWith(`${base}/`))
+				return res.writeHead(404).end();
+			const file = await resolveFile(dir, pathname.slice(base.length) || '/');
 			const served = file ?? (await resolveFile(dir, '/404.html'));
 			if (!served) return res.writeHead(404).end();
 			const body = await readFile(served);

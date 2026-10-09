@@ -1,0 +1,170 @@
+/**
+ * Reads `xcwds.config.*`, runs the plugins' build hooks and writes `.xcwds/` (Node only). Runs
+ * whenever `svelte.config.js` loads, which happens before `svelte-kit sync`, `svelte-check`,
+ * `vite dev` and `vite build`, so the generated files always exist (RFC 0001, decision 3).
+ */
+import { existsSync, readFileSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import {
+	XcwdsError,
+	codes,
+	createApp,
+	createManifest,
+	definePlugin,
+	memoryStorage,
+	pluginMeta,
+	resolveConfig,
+	type Plugin
+} from '@xcwds/core';
+import { decorateRoutes } from '../routes.js';
+import { buildModule, workerModule } from './codegen.js';
+import type { BuildState, PluginInfo } from './state.js';
+
+export const CONFIG_FILES = [
+	'xcwds.config.ts',
+	'xcwds.config.mts',
+	'xcwds.config.js',
+	'xcwds.config.mjs'
+];
+
+/** The directory generated files go in, relative to the app's root. */
+export const OUT_DIR = '.xcwds';
+
+export function findConfig(root: string): string {
+	for (const name of CONFIG_FILES) {
+		const file = join(root, name);
+		if (existsSync(file)) return file;
+	}
+	throw new XcwdsError(
+		codes.CONFIG_INVALID,
+		`No xcwds config in ${root}: add an xcwds.config.ts that exports defineConfig({ ... }).`
+	);
+}
+
+/** A plugin package's `package.json`, found the way Node finds packages from the app's root. */
+function findPackage(root: string, name: string): { exports: unknown } {
+	for (let dir = root; ; dir = dirname(dir)) {
+		const file = join(dir, 'node_modules', name, 'package.json');
+		if (existsSync(file)) return JSON.parse(readFileSync(file, 'utf8')) as { exports: unknown };
+		if (dirname(dir) === dir) break;
+	}
+	throw new XcwdsError(
+		codes.CONFIG_INVALID,
+		`The plugin "${name}" isn't installed: add it to your app's dependencies.`,
+		{ plugin: name }
+	);
+}
+
+function hasExport(exports: unknown, subpath: string): boolean {
+	return typeof exports === 'object' && exports !== null && subpath in exports;
+}
+
+/** A build entry's `build` export: a kernel plugin that adds build hooks and routes. */
+function buildPlugin(name: string, module: Record<string, unknown>): Plugin<never> | undefined {
+	const build = module.build;
+	if (build === undefined) return undefined;
+	if (typeof build !== 'function')
+		throw new XcwdsError(
+			codes.PLUGIN_NOT_A_FUNCTION,
+			`The \`build\` export of "${name}" must be a plugin (definePlugin(...)).`,
+			{ plugin: name }
+		);
+	const plugin = build as Plugin<never>;
+	const meta = pluginMeta(plugin);
+	// Named after its package, so errors and the route registry say whose it is.
+	return meta.name
+		? plugin
+		: definePlugin((app, options) => plugin(app, options), { ...meta, name });
+}
+
+const isPath = (v: unknown): v is string =>
+	typeof v === 'string' && v.startsWith('/') && !/[?#]/.test(v);
+
+export type GenerateOptions = {
+	/** The app's root (where `xcwds.config.*` and `package.json` are). */
+	root: string;
+	/** SvelteKit's `paths.base`. */
+	base?: string;
+};
+
+export async function generate({ root, base = '' }: GenerateOptions): Promise<BuildState> {
+	const configFile = findConfig(root);
+	// Vite's module runner loads TypeScript configs with no separate compiler (Vite >= 6.1).
+	const { runnerImport } = await import('vite');
+	const { module, dependencies } = await runnerImport<{ default: unknown }>(configFile, {
+		root,
+		logLevel: 'error'
+	});
+	const fileExists = (path: string) => existsSync(resolve(root, path));
+	let config = resolveConfig(module.default, { fileExists });
+	// Valid, so plain data: hooks get a copy of the config as written.
+	const written = structuredClone(module.default) as Record<string, unknown>;
+
+	const dir = join(root, OUT_DIR);
+	await mkdir(dir, { recursive: true });
+	await writeFile(join(dir, '.gitignore'), '*\n');
+
+	const plugins: PluginInfo[] = config.plugins.map(({ name, options }) => {
+		const { exports } = findPackage(root, name);
+		return {
+			name,
+			options,
+			client: hasExport(exports, './client'),
+			worker: hasExport(exports, './worker')
+		};
+	});
+
+	// Plugins' `.` entries, imported from the app's root as the config imported them.
+	const buildFile = join(dir, 'build.js');
+	await writeFile(buildFile, buildModule(plugins.map((p) => p.name)));
+	const entries = (await import(`${pathToFileURL(buildFile).href}?t=${Date.now()}`)) as {
+		default: Record<string, unknown>[];
+	};
+
+	const app = createApp({ storage: memoryStorage(), appName: config.brand.name });
+	const routes = decorateRoutes(app);
+	plugins.forEach((p, i) => {
+		const plugin = buildPlugin(p.name, entries.default[i]!);
+		if (plugin) app.register(plugin, { ...p.options } as never);
+	});
+	await app.ready();
+
+	// `onConfig` may change the config, but not its plugins: they have loaded already.
+	const next = resolveConfig(await app.hooks.reduce('onConfig', written), { fileExists });
+	if (JSON.stringify(next.plugins) !== JSON.stringify(config.plugins))
+		throw new XcwdsError(codes.CONFIG_INVALID, "onConfig hooks can't add or remove plugins.");
+	config = next;
+
+	const head = (await app.hooks.collect('onHead', [])).filter((s) => typeof s === 'string');
+	const worker = (await app.hooks.collect('onWorker', [])).flat();
+	const prerender = (await app.hooks.collect('onPrerender', [])).flat();
+	for (const path of prerender)
+		if (!isPath(path))
+			throw new XcwdsError(
+				codes.CONFIG_INVALID,
+				`onPrerender returned ${JSON.stringify(path)}; paths start with "/" and have no query or hash.`
+			);
+	const manifest = {
+		...(await app.hooks.reduce('onManifest', createManifest(config, { base }))),
+		...config.manifest
+	};
+	await app.close();
+
+	const state: BuildState = {
+		root,
+		base,
+		configFile,
+		dependencies,
+		config,
+		plugins,
+		head,
+		worker,
+		prerender,
+		routes: routes.list(),
+		manifest
+	};
+	await writeFile(join(dir, 'worker.js'), workerModule(state));
+	return state;
+}

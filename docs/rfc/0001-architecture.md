@@ -3,8 +3,9 @@
 - Status: accepted
 - Issue: [#2](https://github.com/xcwds/core/issues/2)
 - Spikes: [`examples/minimal`](../../examples/minimal) and
-  [`examples/spike-plugin-hello`](../../examples/spike-plugin-hello), tested by
-  [`e2e/spikes.test.ts`](../../examples/minimal/e2e/spikes.test.ts)
+  [`examples/plugin-hello`](../../examples/plugin-hello), now built on `@xcwds/sveltekit` (#10)
+  and tested by [`e2e/app.test.ts`](../../examples/minimal/e2e/app.test.ts), at the root and
+  under a base path
 
 @xcwds is a framework for making installable, offline-first PWAs from a config file and a list
 of plugins. It generalises what [xcwds.github.io](https://github.com/xcwds/xcwds.github.io) built
@@ -66,13 +67,19 @@ JSON-serialisable. The config validator rejects anything else (a function, a cla
 `undefined` inside an array) with the plugin's name. A plugin needing code from the app takes a
 module path as an option and imports it from its own entry.
 
-**Spike.** Test 1: `hello({ greeting: 'hi' })` in [`xcwds.config.js`](../../examples/minimal/xcwds.config.js)
+Each entry is a kernel plugin (`definePlugin(...)`): `./client` and `./worker` as their default
+export, and the `.` entry as a named `build` export beside the factory. The integration registers
+each with the plugin's options in its own app (build, page, worker), so build hooks and routes
+(`app.route()`) are added in Node, and runtime and worker hooks where they run.
+
+**Spike.** Test 1: `hello({ greeting: 'hi' })` in [`xcwds.config.ts`](../../examples/minimal/xcwds.config.ts)
 becomes `virtual:xcwds/client`, whose `onBoot` sets `data-hello="hi"` in the browser. The same
 module is imported at prerender without error, so client entries must not touch browser
-globals at import time (`onBoot` and later hooks only run in the browser).
+globals at import time (`onBoot` and later hooks only run in the browser). Their plugin
+functions do run at prerender, so pages render with their decorators and settings fields.
 
-The spike loads a JavaScript config with `import()`. The integration loads `xcwds.config.ts` with
-Vite's `runnerImport` (Vite ≥ 6.1), so TypeScript configs need no separate compiler.
+The integration loads `xcwds.config.ts` with Vite's `runnerImport` (Vite ≥ 6.1), so TypeScript
+configs need no separate compiler.
 
 ### 2. Plugin pages are thin route files
 
@@ -110,8 +117,11 @@ Vite plugin's virtual modules don't resolve there.
 **Decision.** The integration writes real files into `.xcwds/` (git-ignored) when
 `svelte.config.js` loads, which happens before `svelte-kit sync`, `svelte-check`, `vite dev` and
 `vite build`. `src/service-worker.ts` imports `.xcwds/worker.js`, which imports each plugin's
-`./worker` entry. Normal package resolution works in SvelteKit's worker build, so nothing else is
-needed.
+`./worker` entry and `onWorker` modules, and starts the worker runtime from
+`@xcwds/sveltekit/worker` with the `$service-worker` lists. Normal package resolution works in
+SvelteKit's worker build, so nothing else is needed. The runtime runs `onFetch` hooks first and
+otherwise serves a baseline offline strategy (precache, then this version's cache first), so
+every app installs and works offline; `@xcwds/plugin-offline` (#11) builds on it.
 
 SvelteKit 3 builds the worker as a Vite environment (`serviceWorker`), so virtual modules would
 work there. The generated-file approach works on both, so it stays the single mechanism until
@@ -124,17 +134,21 @@ plugin's `onFetch` hook.
 
 `app.html` is a static template, and Vite's `transformIndexHtml` doesn't apply to SvelteKit pages.
 
-**Decision.** Plugins return plain ES5 snippets from the `onHead` build hook. The integration
-wraps each in its own `try`, joins them into one inline `<script>`, and writes it to
-`.xcwds/head.js`. A `handle` hook (exported by the integration for `src/hooks.server.ts`)
-replaces a `%xcwds.head%` placeholder in `app.html` using `transformPageChunk`. Handle hooks run
-at prerender, including for adapter-static's `404.html` fallback.
+**Decision.** Plugins return plain ES5 snippets from the `onHead` build hook, and settings fields
+add theirs with `prePaint` (`app.settings.prePaintScript()`). A `handle` hook (exported by the
+integration for `src/hooks.server.ts`) wraps each snippet in its own `try`, joins them into one
+inline `<script>` after the manifest, icon and iOS tags, and replaces a `%xcwds.head%`
+placeholder in `app.html` using `transformPageChunk`. Handle hooks run at prerender, including
+for adapter-static's `404.html` fallback.
 
 The placeholder goes **after** `%sveltekit.head%`, because SvelteKit puts its CSP `<meta>` first
 in that output and a `<meta>` policy only covers what follows it. `withXcwds()` sets SvelteKit's
-CSP in hash mode and adds the script's `sha256-` hash to `script-src`; SvelteKit hashes its own
-inline boot script. Comments in `app.html` must not contain `%sveltekit.*%` text: SvelteKit
-replaces placeholders anywhere in the file.
+CSP in hash mode; SvelteKit hashes its own inline boot script, and `handle` adds the pre-paint
+script's `sha256-` hash to `script-src` in that `<meta>` (or the CSP header, in `vite dev`).
+The hash is added by `handle` rather than in `svelte.config.js` because settings fields come
+from the plugins' `./client` entries, which only load in the page bundle, after the config.
+Comments in `app.html` must not contain `%sveltekit.*%` text: SvelteKit replaces placeholders
+anywhere in the file.
 
 **Spike.** Test 4: `/`, `/hello` and an unknown URL (served `404.html`) all carry the CSP and
 set `data-prepaint` with every JavaScript file blocked, so the attribute comes from the inline

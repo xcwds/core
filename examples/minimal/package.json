@@ -6,15 +6,21 @@
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"test:e2e": "vite build && playwright test"
+		"build:base": "BASE_PATH=/sub BUILD_DIR=build-sub vite build",
+		"preview": "vite preview",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+		"test:e2e": "vite build && pnpm build:base && playwright test"
+	},
+	"dependencies": {
+		"@xcwds-example/plugin-hello": "workspace:*",
+		"@xcwds/core": "workspace:*",
+		"@xcwds/sveltekit": "workspace:*"
 	},
 	"devDependencies": {
 		"@playwright/test": "1.57.0",
-		"@sveltejs/adapter-static": "^3.0.10",
+		"@resvg/resvg-js": "^2.6.2",
 		"@sveltejs/kit": "^2.49.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
-		"@xcwds-spike/plugin-hello": "workspace:*",
 		"svelte": "^5.45.6",
 		"svelte-check": "^4.3.4",
 		"typescript": "^5.9.3",

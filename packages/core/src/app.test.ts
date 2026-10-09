@@ -367,6 +367,25 @@ describe('hooks', () => {
 		expect(await app.hooks.collect('onBeforeReload', [])).toEqual(['A timer is running', 'Saving']);
 	});
 
+	it('reduces a value through every hook in order', async () => {
+		const errors: unknown[] = [];
+		const app = testApp();
+		app.addHook('onError', (e) => void errors.push(e));
+		app.addHook('onManifest', (m) => ({ ...m, name: 'A' }));
+		app.addHook('onManifest', () => undefined);
+		app.addHook('onManifest', () => {
+			throw new Error('bad');
+		});
+		app.addHook('onManifest', async (m) => ({ ...m, short_name: `${String(m.name)}!` }));
+		expect(await app.hooks.reduce('onManifest', { name: 'x', lang: 'en' })).toEqual({
+			name: 'A',
+			short_name: 'A!',
+			lang: 'en'
+		});
+		expect(errors).toHaveLength(1);
+		expect(await testApp().hooks.reduce('onConfig', { a: 1 })).toEqual({ a: 1 });
+	});
+
 	it('logs errors when nobody handles them, and never loops on a failing onError', async () => {
 		const error = vi.fn();
 		const app = testApp();

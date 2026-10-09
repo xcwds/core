@@ -114,6 +114,17 @@ export type HookRunner = {
 		args: Parameters<Hooks[K]>,
 		options?: { path?: string }
 	): Promise<Exclude<HookResult<K>, void | undefined>[]>;
+	/**
+	 * Passes a value through every hook in order, like a waterfall: each gets the latest value
+	 * (plus `rest`) and may return a replacement. A hook that returns nothing (or throws) leaves it
+	 * as it was. Used for `onConfig` and `onManifest`.
+	 */
+	reduce<K extends HookName>(
+		name: K,
+		value: Parameters<Hooks[K]>[0],
+		rest?: Parameters<Hooks[K]> extends [unknown, ...infer R] ? R : [],
+		options?: { path?: string }
+	): Promise<Parameters<Hooks[K]>[0]>;
 	/** The plugins with a `name` hook (for a path, for route hooks). */
 	plugins(name: HookName, options?: { path?: string }): string[];
 };
@@ -466,6 +477,14 @@ function createRunner(getKernel: () => Kernel): HookRunner {
 				if (r.ok && r.value !== undefined) out.push(r.value);
 			}
 			return out as never;
+		},
+		async reduce(name, value, rest, options = {}) {
+			let current: unknown = value;
+			for (const h of select(name, options.path)) {
+				const r = await call(h, [current, ...((rest as unknown[] | undefined) ?? [])]);
+				if (r.ok && r.value !== undefined) current = r.value;
+			}
+			return current as never;
 		},
 		plugins(name, options = {}) {
 			return select(name, options.path).map((h) => h.plugin);

@@ -1,0 +1,37 @@
+{
+	"name": "@xcwds-example/plugin-hello",
+	"version": "0.0.0",
+	"private": true,
+	"description": "A tiny example plugin with build, client and worker entries and a page component, used by examples/minimal.",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./index.d.ts",
+			"default": "./index.js"
+		},
+		"./client": {
+			"types": "./client.d.ts",
+			"default": "./client.js"
+		},
+		"./worker": {
+			"types": "./worker.d.ts",
+			"default": "./worker.js"
+		},
+		"./Page.svelte": {
+			"types": "./Page.svelte.d.ts",
+			"svelte": "./Page.svelte",
+			"default": "./Page.svelte"
+		}
+	},
+	"dependencies": {
+		"@xcwds/core": "workspace:^"
+	},
+	"peerDependencies": {
+		"@xcwds/sveltekit": "workspace:^",
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"@xcwds/sveltekit": "workspace:^",
+		"svelte": "^5.45.6"
+	}
+}
