@@ -84,8 +84,13 @@ export async function prepare(
 	const plugins: Prepared['plugins'] = [];
 	for (const item of list) {
 		if (typeof item === 'function') plugins.push([item, {}]);
-		else if (Array.isArray(item)) plugins.push([item[0], { ...item[1] }]);
-		else if (isDescriptor(item)) {
+		else if (Array.isArray(item)) {
+			if (typeof item[0] !== 'function')
+				throw new TypeError(
+					'A [plugin, options] pair needs a plugin function first (was the plugin imported?).'
+				);
+			plugins.push([item[0], { ...item[1] }]);
+		} else if (isDescriptor(item)) {
 			const options = { ...(item.options as Record<string, unknown>) };
 			const main = await load(importer, item.name, item.name);
 			if (!main) throw new Error(`"${item.name}" has no main entry.`);

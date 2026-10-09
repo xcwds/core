@@ -21,7 +21,8 @@ export default definePlugin(
 		app.addHook('onBoot', () => {
 			document.documentElement.dataset.hello = greeting;
 		});
-		// The order hooks run in, for the e2e tests (and @xcwds/testing's, which must match).
+		// Test-only: records the order hooks run in for the e2e tests (and @xcwds/testing's, which must
+		// match). A real plugin has no reason to do this.
 		const record = (/** @type {string} */ entry) => {
 			const g = /** @type {{ xcwdsHooks?: string[] }} */ (globalThis);
 			(g.xcwdsHooks ??= []).push(entry);

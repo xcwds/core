@@ -137,6 +137,19 @@ describe('buildTestWorker globals and errors', () => {
 });
 
 describe('MemoryCache', () => {
+	it('leaves the real globals alone when the plugin list is rejected', async () => {
+		const realFetch = globalThis.fetch;
+		const realCaches = (globalThis as { caches?: unknown }).caches;
+		await expect(buildTestWorker({ plugins: [[undefined as never, {}]] })).rejects.toThrow(
+			/plugin function first/
+		);
+		expect(globalThis.fetch).toBe(realFetch);
+		expect((globalThis as { caches?: unknown }).caches).toBe(realCaches);
+		const worker = await buildTestWorker({ plugins: [] });
+		await worker.close();
+		expect(globalThis.fetch).toBe(realFetch);
+	});
+
 	it('checks what it stores like the Cache API', async () => {
 		let calls = 0;
 		const cache = new MemoryCache('http://localhost', (request) => {
@@ -170,6 +183,9 @@ describe('MemoryCache', () => {
 				ignoreMethod: true
 			})
 		).toBeDefined();
+		await cache.put('/q?v=1', new Response('q'));
+		expect(await cache.match('/q?v=2')).toBeUndefined();
+		expect(await (await cache.match('/q?v=2', { ignoreSearch: true }))?.text()).toBe('q');
 	});
 
 	it('keeps named caches in a CacheStorage', async () => {

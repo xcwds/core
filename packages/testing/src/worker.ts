@@ -34,6 +34,12 @@ const offline: Network = (request) => {
 	throw new TypeError(`No network in tests (${request.url}); pass \`network\` to answer it.`);
 };
 
+const withoutSearch = (url: string) => {
+	const u = new URL(url);
+	u.search = '';
+	return u.href;
+};
+
 /** The part of the Cache API plugins use, kept in memory, with the real one's checks. */
 export class MemoryCache {
 	readonly #entries = new Map<string, Response>();
@@ -53,11 +59,15 @@ export class MemoryCache {
 
 	async match(
 		request: RequestInfo | URL,
-		options: { ignoreMethod?: boolean } = {}
+		options: { ignoreMethod?: boolean; ignoreSearch?: boolean } = {}
 	): Promise<Response | undefined> {
 		const req = this.#request(request);
 		if (req.method !== 'GET' && !options.ignoreMethod) return undefined;
-		return this.#entries.get(req.url)?.clone();
+		if (!options.ignoreSearch) return this.#entries.get(req.url)?.clone();
+		const want = withoutSearch(req.url);
+		for (const [url, response] of this.#entries)
+			if (withoutSearch(url) === want) return response.clone();
+		return undefined;
 	}
 	async put(request: RequestInfo | URL, response: Response): Promise<void> {
 		const req = this.#request(request);
@@ -131,7 +141,7 @@ export class MemoryCacheStorage {
 	}
 	async match(
 		request: RequestInfo | URL,
-		options: { cacheName?: string; ignoreMethod?: boolean } = {}
+		options: { cacheName?: string; ignoreMethod?: boolean; ignoreSearch?: boolean } = {}
 	): Promise<Response | undefined> {
 		const names = options.cacheName ? [options.cacheName] : this.#caches.keys();
 		for (const name of names) {
@@ -193,6 +203,10 @@ export async function buildTestWorker(
 	if (active) throw new Error('Another test worker is open; close it first.');
 	const caches = new MemoryCacheStorage(origin, network);
 	const cache = await caches.open('xcwds:test');
+	// Set up the app before stubbing globals, so a plugin list it rejects leaves none behind.
+	const trap = new ErrorTrap(options.strict ?? true);
+	const app = setupApp({ ...prepared, storage: memoryStorage(), logLevel });
+	trap.watch(app);
 	const restore = stubGlobals({
 		caches,
 		fetch: async (input: RequestInfo | URL, init?: RequestInit) =>
@@ -202,9 +216,6 @@ export async function buildTestWorker(
 					: new Request(input instanceof Request ? input : new URL(String(input), origin), init)
 			)
 	});
-	const trap = new ErrorTrap(options.strict ?? true);
-	const app = setupApp({ ...prepared, storage: memoryStorage(), logLevel });
-	trap.watch(app);
 	let closed = false;
 	const worker: TestWorker = {
 		app,

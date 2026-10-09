@@ -162,7 +162,9 @@ for (const { name, dir, base } of targets) {
 			});
 
 			test("run the first page's hooks in order", async ({ page }) => {
-				// The redirect's guard answers at once, before the first page's afterNavigate.
+				// The redirect's guard answers at once, before the first page's afterNavigate. In the browser
+				// this order comes from SvelteKit's own scheduling, so it is best-effort: if a SvelteKit
+				// release changes it, update this test and the kit's matching one together.
 				await page.goto(url('/moved'));
 				await at(page, '/hello', 2);
 				expect(
