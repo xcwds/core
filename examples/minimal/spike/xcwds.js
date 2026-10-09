@@ -3,10 +3,39 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import adapter from '@sveltejs/adapter-static';
 
 /** @typedef {{ name: string, options: Record<string, unknown> }} Descriptor */
+
+/** The app's root: this file lives in `<root>/spike/`, wherever the tool loading it runs. */
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+
+/**
+ * The path to the first value in `value` that JSON can't carry unchanged, or null.
+ * @param {unknown} value
+ * @param {string} path
+ * @returns {string | null}
+ */
+function notJson(value, path) {
+	if (value === null || typeof value === 'string' || typeof value === 'boolean') return null;
+	if (typeof value === 'number') return Number.isFinite(value) ? null : path;
+	if (Array.isArray(value)) {
+		for (let i = 0; i < value.length; i++) {
+			const bad = notJson(value[i], `${path}[${i}]`);
+			if (bad) return bad;
+		}
+		return null;
+	}
+	if (typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+		for (const [key, v] of Object.entries(value)) {
+			const bad = notJson(v, `${path}.${key}`);
+			if (bad) return bad;
+		}
+		return null;
+	}
+	return path;
+}
 
 /** @param {string} root */
 async function loadConfig(root) {
@@ -15,8 +44,8 @@ async function loadConfig(root) {
 	const config = (await import(`${url.href}?t=${Date.now()}`)).default;
 	for (const p of config.plugins) {
 		// Decision 1: options cross from Node into the page and the worker as JSON.
-		if (JSON.stringify(p.options) === undefined || JSON.parse(JSON.stringify(p.options)) === null)
-			throw new Error(`${p.name}: options must be JSON-serialisable`);
+		const bad = notJson(p.options, 'options');
+		if (bad) throw new Error(`${p.name}: ${bad} must be JSON (no functions, classes or undefined)`);
 	}
 	return config;
 }
@@ -75,8 +104,7 @@ async function generate(root) {
  * @param {import('@sveltejs/kit').Config} svelteConfig
  */
 export async function withXcwds(svelteConfig = {}) {
-	const root = process.cwd();
-	const { hash } = await generate(root);
+	const { hash } = await generate(ROOT);
 	return {
 		...svelteConfig,
 		kit: {
@@ -109,7 +137,7 @@ export function xcwds() {
 		resolveId: (source) => (source === id ? `\0${id}` : undefined),
 		async load(resolved) {
 			if (resolved !== `\0${id}`) return undefined;
-			const config = await loadConfig(process.cwd());
+			const config = await loadConfig(ROOT);
 			return imports(config.plugins, 'client');
 		}
 	};
