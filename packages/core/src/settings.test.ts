@@ -150,11 +150,41 @@ describe('settings', () => {
 				name: 'theme',
 				plugin: '@xcwds/plugin-theme',
 				label: 'theme',
+				hint: undefined,
 				section: 'appearance',
+				control: undefined,
 				default: 'system'
 			},
-			{ name: 'presets', plugin: 'timers', label: 'presets', section: 'general', default: [1, 5] }
+			{
+				name: 'presets',
+				plugin: 'timers',
+				label: 'presets',
+				hint: undefined,
+				section: 'general',
+				control: undefined,
+				default: [1, 5]
+			}
 		]);
+	});
+
+	it('carries a control and hint for settings pages, and refuses unknown controls', () => {
+		const { settings } = setup();
+		const scope = settings.scope('p');
+		const bool = (v: unknown) => (typeof v === 'boolean' ? v : undefined);
+		scope.field('sound', {
+			default: true,
+			parse: bool,
+			label: 'Sound',
+			hint: 'Beep when done.',
+			control: { type: 'switch' }
+		});
+		expect(settings.fields().find((f) => f.name === 'sound')).toMatchObject({
+			hint: 'Beep when done.',
+			control: { type: 'switch' }
+		});
+		expect(() =>
+			scope.field('odd', { default: true, parse: bool, control: { type: 'slider' } as never })
+		).toThrow(/unknown control/);
 	});
 
 	describe('pre-paint script', () => {

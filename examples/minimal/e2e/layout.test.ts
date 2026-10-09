@@ -197,7 +197,7 @@ for (const { name, dir, base } of targets) {
 			await gotoHydrated(page, url('/no-such-page'));
 			await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page not found');
 			const links = page.getByRole('navigation', { name: 'Go to' }).getByRole('link');
-			await expect(links).toHaveText(['🏠 Home', '👋 Hello', '🧰 Utils']);
+			await expect(links).toHaveText(['🏠 Home', '👋 Hello', '🧰 Utils', '⚙️ Settings']);
 			await links.nth(1).click();
 			await expect(page).toHaveURL(url('/hello'));
 		});

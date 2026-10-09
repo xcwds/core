@@ -17,13 +17,30 @@ export interface Settings {}
 
 type Values = Settings & Record<string, unknown>;
 
+/**
+ * How a settings page shows a field, as plain data (`@xcwds/plugin-settings` renders these):
+ * `choice` is a segmented control, `switch` a switch for a boolean, `number` a stepper, and
+ * `switches` one switch per boolean in an object field (e.g. `{ sound, vibration }`).
+ */
+export type Control =
+	| { type: 'choice'; options: { value: string | number | boolean; label: string }[] }
+	| { type: 'switch' }
+	| { type: 'number'; min: number; max: number; step?: number; unit?: string }
+	| { type: 'switches'; options: { key: string; label: string; hint?: string }[] };
+
+const CONTROLS = ['choice', 'switch', 'number', 'switches'];
+
 export type FieldDefinition<T> = {
 	default: T;
 	/** Returns the value if `raw` is valid, otherwise `undefined` (the default is used). */
 	parse: (raw: unknown) => T | undefined;
 	label?: string;
+	/** One line under the label on a settings page. */
+	hint?: string;
 	/** Where a settings page shows it, e.g. `appearance`. */
 	section?: string;
+	/** How a settings page shows it; without one, only a component the app or a plugin adds does. */
+	control?: Control;
 	/**
 	 * Plain ES5 that applies the field before first paint: a function body that gets the saved
 	 * (or default) value as `v` and `document.documentElement` as `root`. It must validate `v`
@@ -36,7 +53,9 @@ export type FieldInfo = {
 	name: string;
 	plugin: string;
 	label: string;
+	hint: string | undefined;
 	section: string;
+	control: Control | undefined;
 	default: unknown;
 };
 
@@ -219,7 +238,9 @@ export function createSettings(storage: StorageRegistry): SettingsRegistry {
 				name,
 				plugin: f.plugin,
 				label: f.label ?? name,
+				hint: f.hint,
 				section: f.section ?? 'general',
+				control: clone(f.control),
 				default: clone(f.default)
 			})),
 		prePaintScript
@@ -253,6 +274,15 @@ export function createSettings(storage: StorageRegistry): SettingsRegistry {
 						throw new XcwdsError(
 							codes.SETTINGS_FIELD_INVALID,
 							`The setting "${name}" needs a parse function that accepts its default.`,
+							{ plugin: plugin || undefined }
+						);
+					if (
+						definition.control !== undefined &&
+						!CONTROLS.includes((definition.control as { type?: string } | null)?.type ?? '')
+					)
+						throw new XcwdsError(
+							codes.SETTINGS_FIELD_INVALID,
+							`The setting "${name}" has an unknown control (one of ${CONTROLS.join(', ')}).`,
 							{ plugin: plugin || undefined }
 						);
 					fields.set(name, { ...definition, plugin });

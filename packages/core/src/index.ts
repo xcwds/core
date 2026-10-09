@@ -50,6 +50,7 @@ export {
 } from './storage.js';
 export {
 	createSettings,
+	type Control,
 	type FieldDefinition,
 	type FieldInfo,
 	type Settings,

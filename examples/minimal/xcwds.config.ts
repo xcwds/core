@@ -2,6 +2,7 @@ import hello from '@xcwds-example/plugin-hello';
 import { defineConfig } from '@xcwds/core';
 import install from '@xcwds/plugin-install';
 import offline from '@xcwds/plugin-offline';
+import settings from '@xcwds/plugin-settings';
 import share from '@xcwds/plugin-share';
 import shell from '@xcwds/plugin-shell';
 import theme from '@xcwds/plugin-theme';
@@ -21,7 +22,8 @@ export default defineConfig({
 			sections: [
 				{ path: '/', label: 'Home', emoji: '🏠' },
 				{ path: '/hello', label: 'Hello', emoji: '👋' },
-				{ path: '/utils', label: 'Utils', emoji: '🧰' }
+				{ path: '/utils', label: 'Utils', emoji: '🧰' },
+				{ path: '/settings', label: 'Settings', emoji: '⚙️' }
 			]
 		}),
 		tools({
@@ -57,7 +59,8 @@ export default defineConfig({
 		}),
 		hello({ greeting: 'hi' }),
 		// What others share arrives at /inbox; it stays private, so it has no Share button.
-		share({ target: '/inbox', exclude: ['/inbox'] }),
+		share({ target: '/inbox', exclude: ['/inbox', '/settings'] }),
+		settings({ source: 'https://github.com/xcwds/core', backupName: 'minimal-backup' }),
 		timers({ page: '/utils/timer' }),
 		offline(),
 		update(),

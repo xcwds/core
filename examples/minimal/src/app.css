@@ -3,6 +3,7 @@
 @import '@xcwds/plugin-shell/styles.css';
 @import '@xcwds/plugin-tools/styles.css';
 @import '@xcwds/plugin-timers/styles.css';
+@import '@xcwds/plugin-settings/styles.css';
 
 /* What e2e/theme.test.ts checks paints before any app code runs. */
 html {

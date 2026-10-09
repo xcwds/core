@@ -8,6 +8,7 @@
  * Imported at prerender too, so it only touches browser globals once the app boots.
  */
 import { definePlugin } from '@xcwds/core';
+import type { Component } from 'svelte';
 import {
 	NAME,
 	PROMPT_GLOBAL,
@@ -16,6 +17,11 @@ import {
 	resolveOptions,
 	type InstallOptions
 } from './options.js';
+
+/** What this plugin uses of `app.settingsPage` (from `@xcwds/plugin-settings`, if present). */
+type SettingsPageLike = {
+	add(component: Component, options?: { order?: number }): () => void;
+};
 
 /** Chromium's install prompt event (not in TypeScript's DOM types). */
 type BeforeInstallPromptEvent = Event & {
@@ -64,6 +70,7 @@ export default definePlugin(
 		};
 		let deferred: BeforeInstallPromptEvent | null = null;
 		let stops: (() => void)[] = [];
+		let booted = false;
 
 		app.decorate('install', {
 			get state() {
@@ -97,6 +104,7 @@ export default definePlugin(
 		} satisfies AppInstall);
 
 		app.addHook('onBoot', () => {
+			booted = true;
 			const win = window as Window & { [PROMPT_GLOBAL]?: BeforeInstallPromptEvent };
 			const display = win.matchMedia?.('(display-mode: standalone)');
 			const standalone = () =>
@@ -129,13 +137,22 @@ export default definePlugin(
 			win.addEventListener('beforeinstallprompt', capture);
 			win.addEventListener('appinstalled', installed);
 			display?.addEventListener('change', displayChanged);
+			// With @xcwds/plugin-settings, the install card leads the settings page. Loaded lazily:
+			// the component imports @xcwds/sveltekit, which imports this entry.
+			const page = (app as { settingsPage?: SettingsPageLike }).settingsPage;
+			if (page)
+				void import('./InstallCard.svelte').then(({ default: InstallCard }) => {
+					if (booted) stops.push(page.add(InstallCard, { order: -100 }));
+				});
 			stops = [
+				...stops,
 				() => win.removeEventListener('beforeinstallprompt', capture),
 				() => win.removeEventListener('appinstalled', installed),
 				() => display?.removeEventListener('change', displayChanged)
 			];
 		});
 		app.addHook('onClose', () => {
+			booted = false;
 			for (const stop of stops) stop();
 			stops = [];
 		});
