@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { base, resolve } from '$app/paths';
+	import InstallCard from '@xcwds/plugin-install/InstallCard.svelte';
 	import ThemePicker from '@xcwds/plugin-theme/ThemePicker.svelte';
 	import type {} from '@xcwds/plugin-update/client';
 	import { useApp } from '@xcwds/sveltekit';
@@ -28,6 +29,7 @@
 
 <p><a href={resolve('/hello')}>A plugin's page</a></p>
 <ThemePicker />
+<InstallCard />
 {#if mounted}
 	<button type="button" data-testid="work" onclick={() => (working = !working)}>
 		{working ? 'Stop working' : 'Start working'}
