@@ -1,0 +1,21 @@
+# Agent notes
+
+@xcwds is a Fastify-style, plugin-based framework for private, offline-first PWAs, extracted from
+[xcwds.github.io](https://github.com/xcwds/xcwds.github.io). Plan: epic #1 with milestones per
+phase. Design: `docs/rfc/0001-architecture.md`; follow its decisions, and change the RFC in the
+same PR when a decision changes.
+
+pnpm monorepo: `packages/*` are published under the `@xcwds` scope (all `"private": true` until
+#26), `examples/*` are test apps. Never publish to npm unless the user asks.
+
+- Before pushing: `pnpm build && pnpm check && pnpm lint && pnpm publint && pnpm test:unit --run && pnpm test:e2e`.
+- In Claude Code cloud containers don't run `playwright install`; set
+  `CHROMIUM_PATH=/opt/pw-browsers/chromium-*/chrome-linux/chrome` (the version that exists).
+- The kernel (`@xcwds/core`) stays framework-agnostic: no Svelte, no DOM-framework imports, and no
+  browser globals at import time (client code is imported during prerender).
+- Never phone home: no telemetry, no network calls in any package unless a plugin declares them.
+- Plugin options must be JSON-serialisable (RFC decision 1).
+- Always open a PR against `main` linking the issues it closes (write "Closes #n" for each one).
+  Review it adversarially, post the review on GitHub, fix and re-review (at most 3 rounds), then
+  squash-merge once CI is green, unless the user says not to.
+- Add a changeset for changes to a package.

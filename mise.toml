@@ -1,0 +1,9 @@
+[tools]
+node = '24'
+
+[hooks]
+# Enables the pnpm version pinned in package.json's `packageManager`.
+postinstall = 'npx corepack enable'
+
+[settings]
+experimental = true

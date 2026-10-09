@@ -1,0 +1,34 @@
+{
+	"name": "@xcwds/core",
+	"version": "0.0.0",
+	"private": true,
+	"description": "The @xcwds kernel: plugins, hooks, decorators, config, storage and settings for private, offline-first PWAs.",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/xcwds/core.git",
+		"directory": "packages/core"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"check": "tsc -p tsconfig.json --noEmit",
+		"publint": "publint"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.15"
+	}
+}
