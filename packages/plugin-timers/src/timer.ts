@@ -37,8 +37,9 @@ export const ringing = (t: TimerState, now: number) => running(t) && remaining(t
 export const start = (t: TimerState, now: number): TimerState =>
 	running(t) ? t : { ...t, endsAt: now + t.pausedRemaining };
 
+/** Pauses; a timer that has run over pauses at zero, so it rings again once resumed. */
 export const pause = (t: TimerState, now: number): TimerState =>
-	running(t) ? { ...t, endsAt: null, pausedRemaining: remaining(t, now) } : t;
+	running(t) ? { ...t, endsAt: null, pausedRemaining: Math.max(0, remaining(t, now)) } : t;
 
 export const reset = (t: TimerState, duration = t.duration): TimerState => timer(duration);
 

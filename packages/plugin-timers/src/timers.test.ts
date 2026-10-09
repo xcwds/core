@@ -58,6 +58,11 @@ describe('a timer', () => {
 		expect(t.remaining(s, NOW + 160_000)).toBe(0);
 		expect(t.ringing(s, NOW + 160_000)).toBe(true);
 		expect(t.remaining(s, NOW + 170_000)).toBe(-10_000);
+		// Paused after running over: at zero, and still a valid saved state.
+		const over = t.pause(s, NOW + 170_000);
+		expect(over.pausedRemaining).toBe(0);
+		expect(t.parseTimer(JSON.parse(JSON.stringify(over)))).toEqual(over);
+		expect(t.ringing(t.start(over, NOW + 200_000), NOW + 200_000)).toBe(true);
 		expect(t.reset(s)).toEqual(t.timer(90_000));
 		expect(t.start(s, NOW + 999_000)).toBe(s);
 		expect(t.pause(t.timer(1), NOW)).toEqual(t.timer(1));
