@@ -66,7 +66,7 @@ for (const { name, dir, base } of targets) {
 			}
 			await expect(page.getByTestId('plugin-page')).toHaveText("hi from a plugin's page component");
 			await page.goto(url('/no-such-page'));
-			await expect(page.getByTestId('error')).toHaveText('Page not found');
+			await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
 			await expect(page.getByTestId('offline-notice')).toBeVisible();
 			await context.setOffline(false);
 			await expect(page.getByTestId('offline-notice')).toHaveCount(0);

@@ -16,6 +16,7 @@
 		"@xcwds/core": "workspace:*",
 		"@xcwds/plugin-install": "workspace:*",
 		"@xcwds/plugin-offline": "workspace:*",
+		"@xcwds/plugin-shell": "workspace:*",
 		"@xcwds/plugin-theme": "workspace:*",
 		"@xcwds/plugin-update": "workspace:*",
 		"@xcwds/sveltekit": "workspace:*"
@@ -25,9 +26,11 @@
 		"@resvg/resvg-js": "^2.6.2",
 		"@sveltejs/kit": "^2.49.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@tailwindcss/vite": "^4.3.3",
 		"@xcwds/testing": "workspace:*",
 		"svelte": "^5.45.6",
 		"svelte-check": "^4.3.4",
+		"tailwindcss": "^4.3.3",
 		"typescript": "^5.9.3",
 		"vite": "^7.2.6"
 	}

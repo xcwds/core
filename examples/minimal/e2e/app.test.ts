@@ -45,12 +45,12 @@ for (const { name, dir, base } of targets) {
 		}) => {
 			const html = await (await page.request.get(url('/hello'))).text();
 			expect(html).toContain('hi from a plugin');
-			expect(html).toContain('<title>Hello</title>');
+			expect(html).toContain('<title>Hello · Minimal</title>');
 			await gotoHydrated(page, url('/'));
 			await page.getByRole('link', { name: "A plugin's page" }).click();
 			await expect(page).toHaveURL(url('/hello'));
 			await expect(page.locator('html')).toHaveAttribute('data-path', '/hello');
-			await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hello');
+			await expect(page.getByRole('heading', { level: 1, name: 'Hello' })).toBeVisible();
 			await expect(page.getByTestId('plugin-page')).toHaveText("hi from a plugin's page component");
 			// persist() saves the count and loads it again after a reload.
 			await page.getByTestId('count').click();
@@ -176,7 +176,7 @@ for (const { name, dir, base } of targets) {
 				// The guard for /hello?bounce redirects after 1.5 s; the user leaves well before that.
 				await page.goto(url('/hello?bounce'));
 				await booted(page);
-				await page.getByRole('link', { name: 'Home' }).click();
+				await page.getByRole('link', { name: 'Home', exact: true }).click();
 				await at(page, '/', 3);
 				await page.waitForTimeout(2000);
 				await at(page, '/', 3);
@@ -310,7 +310,7 @@ for (const { name, dir, base } of targets) {
 				expect(fetched).toBe('offline');
 				await page.reload();
 				await booted(page);
-				await expect(page.getByRole('heading', { level: 1 })).toHaveText('Minimal');
+				await expect(page.getByRole('heading', { level: 1, name: 'Minimal' })).toBeVisible();
 				await page.goto(url('/hello'));
 				await booted(page);
 				await expect(page.getByTestId('plugin-page')).toHaveText(
@@ -318,7 +318,7 @@ for (const { name, dir, base } of targets) {
 				);
 				// Pages that were never cached get the 404.html fallback, which boots the app.
 				await page.goto(url('/no-such-page'));
-				await expect(page.getByTestId('error')).toHaveText('Page not found');
+				await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
 				await context.setOffline(false);
 			});
 

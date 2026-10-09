@@ -1,0 +1,11 @@
+@import 'tailwindcss';
+@import '@xcwds/plugin-theme/tailwind.css';
+@import '@xcwds/plugin-shell/styles.css';
+
+/* What e2e/theme.test.ts checks paints before any app code runs. */
+html {
+	background: #fff;
+}
+html[data-color-scheme='dark'] {
+	background: #030712;
+}

@@ -1,0 +1,120 @@
+/*
+ * @xcwds/plugin-shell's styles for Tailwind v4. In your app's CSS, after Tailwind:
+ *
+ *   @import 'tailwindcss';
+ *   @import '@xcwds/plugin-theme/tailwind.css';  (optional: `dark:` follows the theme setting)
+ *   @import '@xcwds/plugin-shell/styles.css';
+ *
+ * Tailwind doesn't scan node_modules, so the @source line below adds the shell's components.
+ */
+@source './';
+
+/* Main navigation. Phones (narrower than `md`) get the bottom tab bar. Wider screens get the
+   header links ("bar") or a left sidebar, picked per orientation by the `nav` setting
+   (`data-nav-portrait` / `data-nav-landscape` on <html>, set before first paint; defaults: bar
+   in portrait, sidebar in landscape). Screens under 500px tall are phones on their side, which
+   keep the header links whatever the setting says. `sidebar:` styles the sidebar layout;
+   anything tied to the tab bar uses `md:`. */
+@custom-variant sidebar {
+	@media (width >= 48rem) and (height >= 31.25rem) and (orientation: landscape) {
+		&:where(:root:not([data-nav-landscape='bar']) *) {
+			@slot;
+		}
+	}
+	@media (width >= 48rem) and (height >= 31.25rem) and (orientation: portrait) {
+		&:where([data-nav-portrait='sidebar'] *) {
+			@slot;
+		}
+	}
+}
+
+/* Page containers: every page's <main> uses one, and its route's `width` names the same one so
+   the header lines up with it. */
+@utility page-narrow {
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--container-md);
+	padding-inline: --spacing(4);
+	@variant sm {
+		padding-inline: --spacing(8);
+	}
+}
+
+@utility page-wide {
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--container-2xl);
+	padding-inline: --spacing(6);
+	@variant sm {
+		padding-inline: --spacing(12);
+	}
+	@variant lg {
+		max-width: var(--container-5xl);
+	}
+}
+
+/* Colours: override any of these on :root to theme the shell without forking it. */
+@layer base {
+	:root {
+		--xcwds-shell-bg: var(--color-blue-200);
+		--xcwds-shell-bar: color-mix(in oklab, var(--color-blue-100) 95%, transparent);
+		--xcwds-shell-card: color-mix(in oklab, white 80%, transparent);
+		--xcwds-shell-text: var(--color-gray-900);
+		--xcwds-shell-muted: var(--color-gray-700);
+		--xcwds-shell-border: color-mix(in oklab, black 5%, transparent);
+		--xcwds-shell-hover-bg: color-mix(in oklab, white 60%, transparent);
+		--xcwds-shell-active-bg: white;
+		--xcwds-shell-accent: var(--color-blue-700);
+		--xcwds-shell-focus: var(--color-blue-500);
+		--xcwds-toast-bg: var(--color-gray-900);
+		--xcwds-toast-fg: white;
+	}
+	:root[data-color-scheme='dark'] {
+		--xcwds-shell-bg: var(--color-gray-950);
+		--xcwds-shell-bar: color-mix(in oklab, var(--color-gray-900) 95%, transparent);
+		--xcwds-shell-card: var(--color-gray-900);
+		--xcwds-shell-text: var(--color-gray-100);
+		--xcwds-shell-muted: var(--color-gray-300);
+		--xcwds-shell-border: color-mix(in oklab, white 10%, transparent);
+		--xcwds-shell-hover-bg: var(--color-gray-800);
+		--xcwds-shell-active-bg: var(--color-gray-800);
+		--xcwds-shell-accent: var(--color-blue-400);
+		--xcwds-toast-bg: white;
+		--xcwds-toast-fg: var(--color-gray-900);
+	}
+
+	/* Accessibility baseline: 44×44px controls (checkboxes and radio buttons get theirs from
+	   their <label>), a focus ring for keyboard users, and the OS "reduce motion" setting. */
+	button,
+	select,
+	input:not([type='checkbox'], [type='radio'], [type='file'], [type='hidden']),
+	textarea {
+		min-height: 2.75rem;
+	}
+	button {
+		min-width: 2.75rem;
+	}
+	summary {
+		padding-block: 0.75rem;
+	}
+	input[type='checkbox'],
+	input[type='radio'] {
+		width: 1.5rem;
+		height: 1.5rem;
+	}
+	:focus-visible {
+		outline: 3px solid var(--xcwds-shell-focus);
+		outline-offset: 2px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	::before,
+	::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}

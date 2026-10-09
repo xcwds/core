@@ -4,6 +4,8 @@ import type { RouteInfo } from './routes.js';
 export type ClientData = {
 	/** `brand.name`: written into backups. */
 	name: string;
+	/** `brand.tagline`. */
+	tagline: string;
 	/**
 	 * SvelteKit's `paths.base`, always absolute (`$app/paths` gives a relative one while
 	 * prerendering when `paths.relative` is on).

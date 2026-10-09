@@ -1,12 +1,17 @@
 # examples/minimal
 
-The smallest @xcwds app, on [`@xcwds/sveltekit`](../../packages/sveltekit) with the example
-plugin [`examples/plugin-hello`](../plugin-hello) (a build hook, a route, a client entry with a
-settings field and a saved value, a worker entry and a page component), plus
-[`@xcwds/plugin-offline`](../../packages/plugin-offline) and
-[`@xcwds/plugin-update`](../../packages/plugin-update) with their notice and banner, and
-[`@xcwds/plugin-theme`](../../packages/plugin-theme) and
-[`@xcwds/plugin-install`](../../packages/plugin-install) with their picker and card on the home page.
+The smallest @xcwds app, on [`@xcwds/sveltekit`](../../packages/sveltekit) with Tailwind, the
+example plugin [`examples/plugin-hello`](../plugin-hello) (a build hook, a route, a client entry
+with a settings field and a saved value, a worker entry and a page component), and the
+official plugins:
+
+- [`@xcwds/plugin-shell`](../../packages/plugin-shell): header, navigation (Home and Hello),
+  toasts, Home and the error page;
+- [`@xcwds/plugin-offline`](../../packages/plugin-offline) and
+  [`@xcwds/plugin-update`](../../packages/plugin-update), with their notice and banner in the
+  shell's stack;
+- [`@xcwds/plugin-theme`](../../packages/plugin-theme) and
+  [`@xcwds/plugin-install`](../../packages/plugin-install), with their picker and card on Home.
 
 ```sh
 pnpm build        # build/, at the root

@@ -3,4 +3,6 @@
 	import Page from '@xcwds-example/plugin-hello/Page.svelte';
 </script>
 
-<Page />
+<main class="page-narrow">
+	<Page />
+</main>

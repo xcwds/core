@@ -1,0 +1,90 @@
+{
+	"name": "@xcwds/plugin-shell",
+	"version": "0.0.0",
+	"private": true,
+	"description": "The app shell for @xcwds apps: header with the page title and back arrow, a tab bar on phones, header links or a sidebar on wider screens, toasts and a Home page plugins add to.",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": [
+		"**/*.svelte",
+		"**/*.css"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/xcwds/core.git",
+		"directory": "packages/plugin-shell"
+	},
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./client": {
+			"types": "./dist/client.d.ts",
+			"default": "./dist/client.js"
+		},
+		"./Shell.svelte": {
+			"types": "./dist/Shell.svelte.d.ts",
+			"svelte": "./dist/Shell.svelte",
+			"default": "./dist/Shell.svelte"
+		},
+		"./Home.svelte": {
+			"types": "./dist/Home.svelte.d.ts",
+			"svelte": "./dist/Home.svelte",
+			"default": "./dist/Home.svelte"
+		},
+		"./ErrorPage.svelte": {
+			"types": "./dist/ErrorPage.svelte.d.ts",
+			"svelte": "./dist/ErrorPage.svelte",
+			"default": "./dist/ErrorPage.svelte"
+		},
+		"./NavPicker.svelte": {
+			"types": "./dist/NavPicker.svelte.d.ts",
+			"svelte": "./dist/NavPicker.svelte",
+			"default": "./dist/NavPicker.svelte"
+		},
+		"./styles.css": "./dist/styles.css",
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"scripts": {
+		"build": "svelte-package -i src -o dist",
+		"check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+		"publint": "publint"
+	},
+	"dependencies": {
+		"@xcwds/core": "workspace:^"
+	},
+	"peerDependencies": {
+		"@sveltejs/kit": "^2.20.0",
+		"@xcwds/sveltekit": "workspace:^",
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"@sveltejs/kit": "^2.49.1",
+		"@sveltejs/package": "^2.5.8",
+		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@xcwds/sveltekit": "workspace:^",
+		"@xcwds/testing": "workspace:*",
+		"svelte": "^5.45.6",
+		"svelte-check": "^4.3.4",
+		"typescript": "^5.9.3",
+		"vite": "^7.2.6",
+		"vitest": "^4.0.15"
+	},
+	"keywords": [
+		"pwa",
+		"offline-first",
+		"xcwds",
+		"xcwds-plugin",
+		"app-shell",
+		"navigation"
+	],
+	"engines": {
+		"node": ">=22.18"
+	}
+}
