@@ -155,7 +155,14 @@ for (const { name, dir, base } of targets) {
 		for (const [size, viewport] of Object.entries(viewports)) {
 			test(`no horizontal scrolling or small tap targets on ${size}`, async ({ page }) => {
 				await page.setViewportSize(viewport);
-				for (const path of ['/', '/hello', '/utils', '/utils/dice', '/no-such-page']) {
+				for (const path of [
+					'/',
+					'/hello',
+					'/utils',
+					'/utils/dice',
+					'/utils/timer',
+					'/no-such-page'
+				]) {
 					await gotoHydrated(page, url(path));
 					const overflow = await page.evaluate(
 						() => document.documentElement.scrollWidth - document.documentElement.clientWidth

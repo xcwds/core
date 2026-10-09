@@ -36,6 +36,7 @@ for (const { name, dir, base } of targets) {
 			await expect(page.getByTestId('tools').getByRole('link')).toHaveText([
 				/Coffee Timer\s*A 90-second countdown\.$/,
 				/Notes/,
+				/Timer/,
 				/Dice/,
 				/Units/,
 				/Journal/
@@ -88,8 +89,14 @@ for (const { name, dir, base } of targets) {
 				'/utils/journal',
 				'/utils/dice',
 				'/utils/units'
-			])
+			]) {
 				await gotoHydrated(page, url(path));
+				// The visit is recorded once the app has booted, a moment after hydration.
+				if (path !== '/hello' && path !== '/utils/journal')
+					await expect
+						.poll(() => page.evaluate(() => localStorage.getItem('app:tools:shortcuts') ?? ''))
+						.toContain(`"${path}"`);
+			}
 			await gotoHydrated(page, url('/'));
 			// The private Journal is never listed.
 			await expect(recent(page)).toHaveText([/Units$/, /Dice$/, /Notes$/]);
