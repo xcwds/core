@@ -51,6 +51,61 @@ for (const { name, dir, base } of targets) {
 			await expect(page.getByTestId('count')).toHaveText('Pressed 1 times');
 		});
 
+		test('onNavigate guards redirect, cancel and hold navigations, keeping history right', async ({
+			page
+		}) => {
+			const home = page.getByRole('link', { name: "A plugin's page" });
+			const pluginPage = page.getByTestId('plugin-page');
+			const html = page.locator('html');
+			await page.goto(url('/'));
+			await booted(page);
+
+			// A synchronous redirect: the link lands on /hello, and Back returns home.
+			await page.getByRole('link', { name: 'Guarded /moved' }).click();
+			await expect(page).toHaveURL(url('/hello'));
+			await expect(pluginPage).toBeVisible();
+			await page.goBack();
+			await expect(page).toHaveURL(url('/'));
+			await expect(home).toBeVisible();
+
+			// A cancelled navigation stays put.
+			await page.getByRole('link', { name: 'Guarded /blocked' }).click();
+			await page.waitForTimeout(300);
+			await expect(page).toHaveURL(url('/'));
+			await expect(home).toBeVisible();
+
+			// An async redirect.
+			await page.getByRole('link', { name: 'Guarded /slow' }).click();
+			await expect(page).toHaveURL(url('/hello'));
+			await expect(pluginPage).toBeVisible();
+			await page.goBack();
+			await expect(page).toHaveURL(url('/'));
+
+			// An async guard that allows: held, then repeated, through Back and Forward too.
+			await page.getByRole('link', { name: 'Guarded /hello?wait' }).click();
+			await expect(page).toHaveURL(url('/hello?wait'));
+			await expect(pluginPage).toBeVisible();
+			await expect(html).toHaveAttribute('data-path', '/hello');
+			await page.goBack();
+			await expect(page).toHaveURL(url('/'));
+			await expect(home).toBeVisible();
+			await page.goForward();
+			await expect(page).toHaveURL(url('/hello?wait'));
+			await expect(pluginPage).toBeVisible();
+			await page.goBack();
+			await expect(page).toHaveURL(url('/'));
+			await expect(home).toBeVisible();
+			await expect(html).toHaveAttribute('data-path', '/');
+		});
+
+		test("the first page's guards run once the app has booted", async ({ page }) => {
+			// /moved isn't a page: 404.html boots the app, and the guard redirects in place.
+			await page.goto(url('/moved'));
+			await expect(page).toHaveURL(url('/hello'));
+			await expect(page.getByTestId('plugin-page')).toBeVisible();
+			expect(await page.evaluate(() => history.length)).toBe(2);
+		});
+
 		test('the pre-paint script runs before first paint under a hash CSP', async ({ page }) => {
 			const errors: string[] = [];
 			page.on('console', (m) => {

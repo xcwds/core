@@ -21,6 +21,16 @@ export default definePlugin(
 		app.addHook('onBoot', () => {
 			document.documentElement.dataset.hello = greeting;
 		});
+		// Navigation guards for the e2e tests: a redirect, a cancel, and two async ones.
+		const later = (/** @type {string | undefined} */ value) =>
+			new Promise((resolve) => setTimeout(() => resolve(value), 50));
+		app.addHook('onNavigate', (to) => {
+			if (to.path === '/moved') return '/hello';
+			if (to.path === '/blocked') return false;
+			if (to.path === '/slow') return later('/hello');
+			if (to.path === '/hello' && to.url?.searchParams.has('wait')) return later(undefined);
+			return undefined;
+		});
 		// Paths reach hooks without the base path.
 		app.addHook('afterNavigate', (to) => {
 			document.documentElement.dataset.path = to.path;

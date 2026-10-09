@@ -96,6 +96,22 @@ describe('generate', () => {
 		expect(client).toContain('href=\\"/sub/manifest.webmanifest\\"');
 	});
 
+	it('refuses static files that collide with generated ones, naming them', async () => {
+		await write('static/manifest.webmanifest', '{}');
+		await write('assets/favicon.ico', '');
+		await expect(generate({ root })).rejects.toThrow(
+			'@xcwds/sveltekit generates manifest.webmanifest, which your static files also have. Remove it from static/'
+		);
+		await rm(join(root, 'static'), { recursive: true });
+		await write('xcwds.config.js', `export default { brand: { name: 'T', icon: 'i.svg' } };`);
+		await write('i.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+		await rm(join(root, 'xcwds.config.ts'));
+		await expect(generate({ root, assets: 'assets' })).rejects.toThrow(
+			'generates favicon.ico, which'
+		);
+		await expect(generate({ root })).resolves.toMatchObject({ assetsDir: join(root, 'static') });
+	});
+
 	it('explains a missing config, a missing plugin and options that are not JSON', async () => {
 		await rm(join(root, 'xcwds.config.ts'));
 		await expect(generate({ root })).rejects.toThrow('No xcwds config');
@@ -119,7 +135,12 @@ describe('withXcwds', () => {
 				kit: {
 					paths: { base: '/sub' },
 					prerender: { entries: ['*', '/more'] },
-					csp: { directives: { 'img-src': ['https://img.example'] } }
+					csp: {
+						directives: {
+							'img-src': ['https://img.example'],
+							'upgrade-insecure-requests': true
+						}
+					}
 				}
 			},
 			{ root }
@@ -139,6 +160,7 @@ describe('withXcwds', () => {
 			'https://img.example'
 		]);
 		expect(config.kit?.csp?.directives?.['script-src']).toEqual(['self']);
+		expect(config.kit?.csp?.directives?.['upgrade-insecure-requests']).toBe(true);
 		expect(recall(root)?.base).toBe('/sub');
 	});
 });
@@ -163,7 +185,12 @@ describe('the Vite plugin', () => {
 		);
 
 		const emitted: Rollup.EmittedAsset[] = [];
-		const context = { emitFile: (f: Rollup.EmittedAsset) => emitted.push(f), warn: () => {} };
+		const context = {
+			emitFile: (f: Rollup.EmittedAsset) => emitted.push(f),
+			error: (message: string) => {
+				throw new Error(message);
+			}
+		};
 		const generateBundle = hook<(this: typeof context) => Promise<void>>(plugin.generateBundle);
 		await generateBundle.call(context);
 		expect(emitted).toEqual([]);
@@ -171,6 +198,9 @@ describe('the Vite plugin', () => {
 		await generateBundle.call(context);
 		expect(emitted.map((f) => f.fileName)).toEqual(['manifest.webmanifest']);
 		expect(JSON.parse(String(emitted[0]!.source))).toMatchObject({ name: 'Test' });
+		// A static file added after svelte.config.js loaded still fails the build.
+		await write('static/manifest.webmanifest', '{}');
+		await expect(generateBundle.call(context)).rejects.toThrow('generates manifest.webmanifest');
 	});
 
 	it('asks for withXcwds() when svelte.config.js has not run it', () => {

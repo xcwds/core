@@ -45,11 +45,15 @@ function csp(user: Csp | undefined, allowOrigins: string[]): Csp {
 		'base-uri': ['self'],
 		'form-action': ['self']
 	};
-	for (const [name, sources] of Object.entries(user?.directives ?? {})) {
-		if (!Array.isArray(sources)) continue;
-		directives[name] = [...new Set([...(directives[name] ?? []), ...(sources as string[])])];
+	const out: Record<string, unknown> = directives;
+	for (const [name, value] of Object.entries(user?.directives ?? {})) {
+		// Source lists are added to the defaults; other values (`upgrade-insecure-requests: true`,
+		// `sandbox`) are kept as they are.
+		out[name] = Array.isArray(value)
+			? [...new Set([...(directives[name] ?? []), ...(value as string[])])]
+			: value;
 	}
-	return { ...user, mode: user?.mode ?? 'hash', directives: directives as Directives };
+	return { ...user, mode: user?.mode ?? 'hash', directives: out as Directives };
 }
 
 export async function withXcwds(
@@ -59,7 +63,8 @@ export async function withXcwds(
 	const kit: KitConfig = svelteConfig.kit ?? {};
 	const state = await generate({
 		root: resolve(options.root ?? process.cwd()),
-		base: kit.paths?.base ?? ''
+		base: kit.paths?.base ?? '',
+		assets: kit.files?.assets ?? 'static'
 	});
 	remember(state);
 	const entries = [

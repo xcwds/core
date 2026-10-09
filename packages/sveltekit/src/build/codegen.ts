@@ -1,4 +1,6 @@
 /** The source of the generated modules. Values are JSON, so they read back exactly. */
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { ICONS, headTags } from '@xcwds/core';
 import type { ClientData, WorkerData } from '../data.js';
 import type { BuildState } from './state.js';
@@ -11,6 +13,11 @@ export const HEADER =
 /** Files the build emits beside SvelteKit's output, relative to the base path. */
 export function emittedFiles(state: BuildState): string[] {
 	return ['manifest.webmanifest', ...(state.config.brand.icon ? Object.values(ICONS) : [])];
+}
+
+/** Generated files that a static file would collide with (and break the precache). */
+export function assetCollisions(state: BuildState): string[] {
+	return emittedFiles(state).filter((file) => existsSync(join(state.assetsDir, file)));
 }
 
 /** `import pN from '<plugin>/<entry>'` for each plugin with that entry, and the pairs list. */

@@ -5,7 +5,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
 	XcwdsError,
@@ -19,7 +19,7 @@ import {
 	type Plugin
 } from '@xcwds/core';
 import { decorateRoutes } from '../routes.js';
-import { buildModule, workerModule } from './codegen.js';
+import { assetCollisions, buildModule, workerModule } from './codegen.js';
 import type { BuildState, PluginInfo } from './state.js';
 
 export const CONFIG_FILES = [
@@ -87,9 +87,15 @@ export type GenerateOptions = {
 	root: string;
 	/** SvelteKit's `paths.base`. */
 	base?: string;
+	/** SvelteKit's `kit.files.assets`, relative to `root`. */
+	assets?: string;
 };
 
-export async function generate({ root, base = '' }: GenerateOptions): Promise<BuildState> {
+export async function generate({
+	root,
+	base = '',
+	assets = 'static'
+}: GenerateOptions): Promise<BuildState> {
 	const configFile = findConfig(root);
 	// Vite's module runner loads TypeScript configs with no separate compiler (Vite >= 6.1).
 	const { runnerImport } = await import('vite');
@@ -155,6 +161,7 @@ export async function generate({ root, base = '' }: GenerateOptions): Promise<Bu
 	const state: BuildState = {
 		root,
 		base,
+		assetsDir: resolve(root, assets),
 		configFile,
 		dependencies,
 		config,
@@ -165,6 +172,12 @@ export async function generate({ root, base = '' }: GenerateOptions): Promise<Bu
 		routes: routes.list(),
 		manifest
 	};
+	const clashes = assetCollisions(state);
+	if (clashes.length)
+		throw new XcwdsError(
+			codes.CONFIG_INVALID,
+			`@xcwds/sveltekit generates ${clashes.join(', ')}, which your static files also have. Remove ${clashes.length === 1 ? 'it' : 'them'} from ${relative(root, state.assetsDir) || '.'}/ (set brand.icon and manifest in the xcwds config instead).`
+		);
 	await writeFile(join(dir, 'worker.js'), workerModule(state));
 	return state;
 }

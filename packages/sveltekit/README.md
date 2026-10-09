@@ -63,12 +63,30 @@ export const prerender = true;
   hash to the page's CSP. **`init`** loads the plugins before the first render, so pages render
   and hydrate with their decorators, routes and settings fields.
 - **`.xcwds/worker.js`** starts the worker from `@xcwds/sveltekit/worker`: plugins' `onFetch`
-  hooks answer first; everything else is precached on install and served from this version's
-  cache first, then the network, then `404.html` for offline navigations. A new version waits
-  until the old one's tabs have closed.
+  hooks answer first; the build, static files, prerendered pages, manifest and icons are
+  precached on install and served from this version's cache first; anything else goes to the
+  network, with `404.html` for offline navigations. Nothing is cached at runtime (that is
+  `@xcwds/plugin-offline`'s job, #11). A new version waits until the old one's tabs have closed.
+  A static file with the same path as a generated one (`manifest.webmanifest`, `icons/*`,
+  `favicon.ico`) fails the build, since it would replace the generated file.
 - **`<App>`** provides the app, boots it after mount (`onBoot`, then `onReady`) and turns
-  navigations into `onNavigate` (which can redirect or cancel) and `afterNavigate`, and page
-  visibility into `onHidden` / `onVisible`. Vite HMR closes the old app.
+  navigations into `onNavigate` and `afterNavigate`, and page visibility into `onHidden` /
+  `onVisible`. Vite HMR closes the old app.
+
+### Navigation guards
+
+`onNavigate(to, from)` hooks run before every in-app navigation (links, `goto`, Back and
+Forward, and links to app paths SvelteKit has no route for). Returning `false` cancels it, a path
+(without the base) redirects there, and nothing lets it go ahead. Hooks that answer synchronously
+decide on the spot. If one returns a promise, the navigation is held and repeated once the hooks
+allow it: Back and Forward with `history.go()`, everything else with `goto(url)`, so a guarded
+link loses `goto` options and `data-sveltekit-*` link options such as `replaceState`. Only the
+latest held navigation counts. A redirect runs the target's own guards, up to 5 redirects in a
+row; after that the navigation stops and the error goes to `onError`.
+
+The first page is loaded rather than navigated to, so its guards run once the app has booted
+(with `from` null): a redirect replaces it in history, and `false` does nothing, since the page
+is already showing.
 
 Everything that builds a URL honours `paths.base`. Route paths, hook paths and the route
 registry never include it.

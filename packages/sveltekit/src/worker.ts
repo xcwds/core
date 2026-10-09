@@ -40,6 +40,23 @@ type WorkerScope = {
 	addEventListener(type: 'message', listener: (event: MessageEvent) => void): void;
 };
 
+/**
+ * Every path to precache, once each: `cache.addAll()` rejects a list with duplicates, which
+ * would stop the worker installing.
+ */
+export function precacheList(
+	options: Pick<WorkerOptions, 'base' | 'build' | 'files' | 'prerendered' | 'assets'>
+): string[] {
+	return [
+		...new Set([
+			...options.build,
+			...options.files,
+			...options.prerendered,
+			...options.assets.map((a) => `${options.base}/${a}`)
+		])
+	];
+}
+
 /** Starts the worker. Returns its app (for tests and plugins that need it). */
 export function startWorker(options: WorkerOptions): App {
 	const sw = globalThis as unknown as WorkerScope;
@@ -64,12 +81,7 @@ export function startWorker(options: WorkerOptions): App {
 	const prefix = `xcwds:${sw.registration.scope}:`;
 	const cacheName = `${prefix}${options.version}`;
 	const fallback = `${base}/404.html`;
-	const assets = [
-		...options.build,
-		...options.files,
-		...options.prerendered,
-		...options.assets.map((a) => `${base}/${a}`)
-	];
+	const assets = precacheList(options);
 	const precached = new Set(assets);
 
 	sw.addEventListener('install', (event) => {
@@ -122,15 +134,11 @@ export function startWorker(options: WorkerOptions): App {
 					const cached = await cache.match(url.pathname);
 					if (cached) return cached;
 				}
+				// Nothing else is cached at runtime (that is @xcwds/plugin-offline's job, #11).
 				try {
-					const response = await fetch(request);
-					if (response.ok && response.type === 'basic' && !precached.has(url.pathname))
-						void cache.put(request, response.clone());
-					return response;
+					return await fetch(request);
 				} catch (error) {
-					const cached =
-						(await cache.match(request)) ??
-						(request.mode === 'navigate' ? await cache.match(fallback) : undefined);
+					const cached = request.mode === 'navigate' ? await cache.match(fallback) : undefined;
 					if (cached) return cached;
 					throw error;
 				}

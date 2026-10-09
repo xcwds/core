@@ -7,11 +7,10 @@
  * page bundle, and emits `manifest.webmanifest` and the icons. The config itself is read by
  * `withXcwds()` in svelte.config.js, which SvelteKit loads first.
  */
-import { existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import type { Plugin, ResolvedConfig } from 'vite';
 import { buildAssets, contentType } from './build/assets.js';
-import { clientModule } from './build/codegen.js';
+import { assetCollisions, clientModule } from './build/codegen.js';
 import { recall, type BuildState } from './build/state.js';
 import { stripBase } from './routes.js';
 
@@ -50,11 +49,14 @@ export function xcwds(): Plugin {
 		async generateBundle() {
 			// SvelteKit builds the server first, then the client; the files belong to the client.
 			if (vite.command !== 'build' || vite.build.ssr) return;
-			for (const [fileName, source] of await getAssets()) {
-				if (existsSync(join(state.root, 'static', fileName)))
-					this.warn(`static/${fileName} is replaced by the one @xcwds/sveltekit generates.`);
+			// withXcwds() refuses these already; checked again in case a file appeared since.
+			const clashes = assetCollisions(state);
+			if (clashes.length)
+				this.error(
+					`@xcwds/sveltekit generates ${clashes.join(', ')}; remove them from your static files.`
+				);
+			for (const [fileName, source] of await getAssets())
 				this.emitFile({ type: 'asset', fileName, source });
-			}
 		},
 		configureServer(server) {
 			// A changed config changes generated code: restart, which reloads svelte.config.js.

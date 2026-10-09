@@ -15,6 +15,8 @@ export type BuildState = {
 	root: string;
 	/** SvelteKit's `paths.base`. */
 	base: string;
+	/** SvelteKit's static files directory (`kit.files.assets`), absolute. */
+	assetsDir: string;
 	configFile: string;
 	/** Files the config imports (watched by `vite dev`). */
 	dependencies: string[];
