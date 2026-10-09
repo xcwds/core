@@ -65,8 +65,11 @@ export const prerender = true;
 - **`.xcwds/worker.js`** starts the worker from `@xcwds/sveltekit/worker`: plugins' `onFetch`
   hooks answer first; the build, static files, prerendered pages, manifest and icons are
   precached on install and served from this version's cache first; anything else goes to the
-  network, with `404.html` for offline navigations. Nothing is cached at runtime (that is
-  `@xcwds/plugin-offline`'s job, #11). A new version waits until the old one's tabs have closed.
+  network, with `404.html` for offline navigations. The strategy reads `app.worker.policy`
+  (extra precache paths, exclusions, the fallback page, runtime caching) once every worker
+  plugin has registered; `@xcwds/plugin-offline` sets it. Nothing is cached at runtime unless a
+  plugin turns it on. A new version waits until the old one's tabs have closed or a plugin calls
+  `app.worker.skipWaiting()` (`@xcwds/plugin-update` does when the user taps Update).
   A static file with the same path as a generated one (`manifest.webmanifest`, `icons/*`,
   `favicon.ico`) fails the build, since it would replace the generated file.
 - **`<App>`** provides the app, marks `<html data-hydrated>` once mounted (what `gotoHydrated`

@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { base, resolve } from '$app/paths';
+	import type {} from '@xcwds/plugin-update/client';
+	import { useApp } from '@xcwds/sveltekit';
 	import { onMount } from 'svelte';
+
+	// Something a reload would interrupt, like a running timer (@xcwds/plugin-update).
+	let working = $state(false);
+	const update = useApp().update;
+	onMount(() => update?.markBusy('work', () => working));
 
 	// Links to paths only the example plugin's onNavigate guard handles. They exist only in the
 	// browser, so prerendering (which runs no guards) doesn't crawl them.
@@ -20,6 +27,9 @@
 
 <p><a href={resolve('/hello')}>A plugin's page</a></p>
 {#if mounted}
+	<button type="button" data-testid="work" onclick={() => (working = !working)}>
+		{working ? 'Stop working' : 'Start working'}
+	</button>
 	<ul>
 		{#each guarded as path (path)}
 			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->

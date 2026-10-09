@@ -33,9 +33,16 @@ export class ErrorTrap {
 		throw new AggregateError(fresh, `${fresh.length} errors were reported to onError.`);
 	}
 
-	/** Runs `fn`, then checks. */
+	/** Runs `fn`, then checks (also when `fn` throws). */
 	async run<T>(fn: () => Promise<T>): Promise<T> {
-		const result = await fn();
+		let result: T;
+		try {
+			result = await fn();
+		} catch (error) {
+			// A reported error usually caused the failure: say that one.
+			this.check();
+			throw error;
+		}
 		this.check();
 		return result;
 	}

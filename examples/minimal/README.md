@@ -2,7 +2,9 @@
 
 The smallest @xcwds app, on [`@xcwds/sveltekit`](../../packages/sveltekit) with the example
 plugin [`examples/plugin-hello`](../plugin-hello) (a build hook, a route, a client entry with a
-settings field and a saved value, a worker entry and a page component).
+settings field and a saved value, a worker entry and a page component), plus
+[`@xcwds/plugin-offline`](../../packages/plugin-offline) and
+[`@xcwds/plugin-update`](../../packages/plugin-update) with their notice and banner.
 
 ```sh
 pnpm build        # build/, at the root

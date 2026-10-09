@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import OfflineNotice from '@xcwds/plugin-offline/OfflineNotice.svelte';
+	import UpdateBanner from '@xcwds/plugin-update/UpdateBanner.svelte';
 	import { App, routeInfo } from '@xcwds/sveltekit';
 
 	let { children } = $props();
@@ -17,6 +19,10 @@
 		<a href={resolve('/')}>Home</a>
 	</header>
 	<main>{@render children()}</main>
+	<aside class="notices">
+		<UpdateBanner />
+		<OfflineNotice />
+	</aside>
 </App>
 
 <style>
@@ -24,5 +30,12 @@
 	:global(button) {
 		min-height: 44px;
 		min-width: 44px;
+	}
+	.notices {
+		position: fixed;
+		inset: auto 1rem 1rem;
+		display: grid;
+		justify-items: center;
+		gap: 0.5rem;
 	}
 </style>

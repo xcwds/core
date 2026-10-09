@@ -1,5 +1,7 @@
 import hello from '@xcwds-example/plugin-hello';
 import { defineConfig } from '@xcwds/core';
+import offline from '@xcwds/plugin-offline';
+import update from '@xcwds/plugin-update';
 
 export default defineConfig({
 	brand: {
@@ -8,5 +10,5 @@ export default defineConfig({
 		icon: 'icon.svg',
 		themeColor: { light: '#dbeafe', dark: '#030712' }
 	},
-	plugins: [hello({ greeting: 'hi' })]
+	plugins: [hello({ greeting: 'hi' }), offline(), update()]
 });

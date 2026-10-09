@@ -1,14 +1,18 @@
 /**
- * `buildTestWorker()`: a service worker's plugins without a browser, set up and filtered as
- * `@xcwds/sveltekit/worker` does it (`@xcwds/sveltekit/routes`). Runs `onFetch` hooks against
- * a `Request`, and `onInstall`, `onActivate` and `onMessage`, with in-memory caches. While it is
- * open, `caches` and `fetch` are the worker's: the caches in memory, and `fetch` answered by
- * the `network` option (there is no network in tests). The integration's default caching
- * strategy isn't included: a response is what the plugins answer, or `undefined` when they
- * leave it to the default.
+ * `buildTestWorker()`: the real service worker runtime (`startWorker()` from
+ * `@xcwds/sveltekit/worker`, with the default strategy) and a plugin list, without a browser.
+ * Its install, activate, message and fetch events are dispatched by the test. While it is open,
+ * `caches` and `fetch` are the worker's: the caches in memory, and `fetch` answered by the
+ * `network` option (there is no network in tests).
  */
-import { memoryStorage, type App, type LogLevel } from '@xcwds/core';
-import { setupApp, workerPath } from '@xcwds/sveltekit/routes';
+import type { App, LogLevel } from '@xcwds/core';
+import {
+	startWorker,
+	type ExtendableEvent,
+	type FetchEvent,
+	type MessageEvent,
+	type WorkerScope
+} from '@xcwds/sveltekit/worker';
 import { closeAfterTest, ErrorTrap } from './errors.js';
 import { prepare, type Importer, type TestInput } from './plugins.js';
 
@@ -17,6 +21,14 @@ type Network = (request: Request) => Response | Promise<Response>;
 export type TestWorkerOptions = {
 	/** SvelteKit's `paths.base`. String paths you pass never include it. */
 	base?: string;
+	/** `$service-worker`'s lists (paths with the base), to precache. Empty by default. */
+	build?: string[];
+	files?: string[];
+	prerendered?: string[];
+	/** Files the integration emits (manifest, icons), relative to the base. */
+	assets?: string[];
+	/** The build version, which names the cache. Defaults to `test`. */
+	version?: string;
 	/** The origin requests are made on. Defaults to `http://localhost`. */
 	origin?: string;
 	/**
@@ -156,15 +168,23 @@ export type TestWorker = {
 	app: App;
 	/** The worker's caches (also `globalThis.caches` while it is open). */
 	caches: MemoryCacheStorage;
-	/** The cache `onInstall` hooks get. */
+	/** This version's cache (what `onInstall` hooks get). */
 	cache: MemoryCache;
 	/** Every error reported to `onError`, in order. */
 	errors: readonly unknown[];
-	/** Runs `onFetch` hooks (GETs only, as the worker does); a string is an app path (without the base). */
+	/** Whether a plugin called `skipWaiting()`. */
+	readonly skippedWaiting: boolean;
+	/**
+	 * Dispatches a `fetch` event: resolves to the worker's response, or `undefined` when it
+	 * leaves the request to the browser (non-GETs, other origins, paths outside the app). A
+	 * string is an app path (without the base); `init.mode: 'navigate'` makes a navigation.
+	 */
 	fetch(input: Request | string, init?: RequestInit): Promise<Response | undefined>;
-	/** Runs `onInstall` hooks with `cache`. */
+	/** Dispatches `install` (precaching, then `onInstall` hooks). */
 	install(): Promise<MemoryCache>;
+	/** Dispatches `activate` (old caches deleted, then `onActivate` hooks). */
 	activate(): Promise<void>;
+	/** Dispatches a `message` event (`onMessage` hooks). */
 	message(data: unknown): Promise<void>;
 	/** Closes the app and puts the real `caches` and `fetch` back. */
 	close(): Promise<void>;
@@ -186,9 +206,43 @@ function stubGlobals(stubs: Record<string, unknown>): () => void {
 	};
 }
 
+type Listener = (event: never) => void;
+
+/** A `ServiceWorkerGlobalScope` stand-in whose events the test dispatches. */
+function fakeScope(origin: string, base: string) {
+	const listeners = new Map<string, Listener[]>();
+	const state = { skippedWaiting: false };
+	const scope: WorkerScope = {
+		location: { origin },
+		registration: { scope: `${origin}${base}/` },
+		clients: { claim: async () => {} },
+		skipWaiting: async () => void (state.skippedWaiting = true),
+		addEventListener(type: string, listener: Listener) {
+			listeners.set(type, [...(listeners.get(type) ?? []), listener]);
+		}
+	};
+	/** Dispatches an event; resolves once everything it waits for has settled. */
+	async function dispatch(type: string, extra: object): Promise<Promise<Response> | undefined> {
+		const waits: Promise<unknown>[] = [];
+		let response: Promise<Response> | undefined;
+		const event = Object.assign(new Event(type), extra, {
+			waitUntil: (promise: Promise<unknown>) => void waits.push(promise),
+			respondWith: (r: Response | Promise<Response>) => void (response = Promise.resolve(r))
+		});
+		for (const listener of listeners.get(type) ?? []) listener(event as never);
+		// A response can add work (e.g. caching it); wait for that too.
+		const settled = response?.catch(() => undefined);
+		await settled;
+		await Promise.all(waits);
+		return response;
+	}
+	return { scope, state, dispatch };
+}
+
 /**
- * Boots a worker for a unit test: plugin functions, pairs, or descriptors (their `./worker`).
- * One test worker is open at a time. Inside a test it closes when the test finishes.
+ * Boots a worker for a unit test: plugin functions, pairs, or descriptors (their `./worker`),
+ * on the integration's real runtime. One test worker is open at a time. Inside a test it closes
+ * when the test finishes.
  */
 export async function buildTestWorker(
 	input: TestInput,
@@ -202,11 +256,8 @@ export async function buildTestWorker(
 	const prepared = await prepare(input, 'worker', { importer: options.import, logLevel });
 	if (active) throw new Error('Another test worker is open; close it first.');
 	const caches = new MemoryCacheStorage(origin, network);
-	const cache = await caches.open('xcwds:test');
-	// Set up the app before stubbing globals, so a plugin list it rejects leaves none behind.
+	const { scope, state, dispatch } = fakeScope(origin, base);
 	const trap = new ErrorTrap(options.strict ?? true);
-	const app = setupApp({ ...prepared, storage: memoryStorage(), logLevel });
-	trap.watch(app);
 	const restore = stubGlobals({
 		caches,
 		fetch: async (input: RequestInfo | URL, init?: RequestInit) =>
@@ -216,29 +267,63 @@ export async function buildTestWorker(
 					: new Request(input instanceof Request ? input : new URL(String(input), origin), init)
 			)
 	});
+	let app: App;
+	try {
+		app = startWorker(
+			{
+				base,
+				build: options.build ?? [],
+				files: options.files ?? [],
+				prerendered: options.prerendered ?? [],
+				assets: options.assets ?? [],
+				version: options.version ?? 'test',
+				name: prepared.name,
+				// Undefined keeps the kernel's default prefix.
+				storagePrefix: prepared.storagePrefix as string,
+				routes: prepared.routes,
+				plugins: prepared.plugins,
+				logLevel
+			},
+			scope
+		);
+	} catch (error) {
+		restore();
+		throw error;
+	}
+	trap.watch(app);
+	const cache = await caches.open(app.worker!.cacheName);
 	let closed = false;
 	const worker: TestWorker = {
 		app,
 		caches,
 		cache,
 		errors: trap.errors,
+		get skippedWaiting() {
+			return state.skippedWaiting;
+		},
 		fetch: (input, init) =>
 			trap.run(async () => {
+				const { mode, ...rest } = init ?? {};
 				const request =
-					typeof input === 'string' ? new Request(new URL(base + input, origin), init) : input;
-				const path = workerPath(request, origin, base);
-				// The integration's worker leaves non-GETs, other origins and paths outside the app alone.
-				if (path === null) return undefined;
-				const url = new URL(request.url);
-				return (await app.hooks.first('onFetch', [request, url], { path })) ?? undefined;
+					typeof input === 'string'
+						? new Request(new URL(base + input, origin), rest)
+						: init
+							? new Request(input, rest)
+							: input;
+				// Node's Request can't be made a navigation; the worker only reads `mode`.
+				if (mode) Object.defineProperty(request, 'mode', { value: mode });
+				return dispatch('fetch', { request } satisfies Partial<FetchEvent>);
 			}),
 		install: () =>
 			trap.run(async () => {
-				await app.hooks.run('onInstall', [cache]);
+				await dispatch('install', {} satisfies Partial<ExtendableEvent>);
 				return cache;
 			}),
-		activate: () => trap.run(() => app.hooks.run('onActivate', [])),
-		message: (data) => trap.run(() => app.hooks.run('onMessage', [data])),
+		activate: () => trap.run(async () => void (await dispatch('activate', {}))),
+		message: (data) =>
+			trap.run(
+				async () => void (await dispatch('message', { data } satisfies Partial<MessageEvent>))
+			),
 		async close() {
 			if (closed) return;
 			closed = true;

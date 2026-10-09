@@ -65,16 +65,17 @@ slash reaches hooks as in the browser), `clock`, `shared`, `errors`, `openTab()`
 
 Decorators reach the test app only from plugins with `encapsulate: false`, as in the page.
 
-**`buildTestWorker(input, options)`** sets up each plugin's `./worker` entry as the service
-worker does and returns `fetch(request | path, init)`, which runs `onFetch` hooks within their
-prefixes for the requests the worker handles (GETs on the app's origin, under the base path)
-and resolves to the hook's response or `undefined`, plus `install()` (`onInstall` with
-`cache`), `activate()`, `message(data)`, `errors` and `close()`. It is strict like
-`buildTestApp`, and closes when the test finishes. While it is open, `globalThis.caches` is its
-in-memory `caches` (a `MemoryCacheStorage`, with the Cache API's checks) and `fetch()` is
-answered by the `network` option (by default every request fails, as offline), so hooks run as
-they would in the worker; one test worker can be open at a time. The integration's default
-precaching strategy isn't part of it.
+**`buildTestWorker(input, options)`** starts the real service worker runtime
+(`startWorker()` from `@xcwds/sveltekit/worker`, default strategy included) with each plugin's
+`./worker` entry, and lets the test dispatch its events: `fetch(request | path, init)` resolves
+to the worker's response, or `undefined` when it leaves the request to the browser (non-GETs,
+other origins, paths outside the base); `install()` precaches the `build`, `files`,
+`prerendered` and `assets` lists you pass, then runs `onInstall` hooks; `activate()`,
+`message(data)`, `skippedWaiting`, `errors` and `close()`. It is strict like `buildTestApp`,
+and closes when the test finishes. While it is open, `globalThis.caches` is its in-memory
+`caches` (a `MemoryCacheStorage`, with the Cache API's checks) and `fetch()` is answered by the
+`network` option (by default every request fails, as offline), so hooks run as they would in
+the worker; one test worker can be open at a time.
 
 ## End-to-end tests
 
