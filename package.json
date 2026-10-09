@@ -1,0 +1,36 @@
+{
+	"name": "xcwds-monorepo",
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@10.28.0",
+	"engines": {
+		"node": ">=22.18"
+	},
+	"scripts": {
+		"build": "pnpm --filter \"./packages/*\" build",
+		"check": "pnpm -r check",
+		"lint": "prettier --check . && eslint .",
+		"format": "prettier --write .",
+		"test:unit": "vitest",
+		"test:e2e": "pnpm --filter \"./examples/*\" test:e2e",
+		"test": "pnpm test:unit --run && pnpm test:e2e",
+		"publint": "pnpm --filter \"./packages/*\" publint",
+		"changeset": "changeset"
+	},
+	"devDependencies": {
+		"@changesets/cli": "^2.29.7",
+		"@eslint/compat": "^1.4.0",
+		"@eslint/js": "^9.39.1",
+		"@types/node": "^24",
+		"eslint": "^9.39.1",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-svelte": "^3.13.1",
+		"globals": "^16.5.0",
+		"prettier": "^3.7.4",
+		"prettier-plugin-svelte": "^3.4.0",
+		"publint": "^0.3.15",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.48.1",
+		"vitest": "^4.0.15"
+	}
+}
