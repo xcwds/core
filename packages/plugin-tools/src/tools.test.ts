@@ -77,6 +77,11 @@ describe('options', () => {
 			/unknown key `recents`/
 		);
 		expect(() => resolveOptions({ tools: [] })).toThrow(/unknown option `tools`/);
+		expect(resolveOptions({ storageKey: 'app:home:shortcuts' }).storageKey).toBe(
+			'app:home:shortcuts'
+		);
+		expect(() => resolveOptions({ storageKey: 'shortcuts' })).toThrow(/`storageKey`/);
+		expect(() => resolveOptions({ storageKey: 'app:home shortcuts' })).toThrow(/`storageKey`/);
 		await expect(
 			buildTestApp({ plugins: [toolsFactory({ path: 'utils' })] }, { import: importer })
 		).rejects.toThrow(/@xcwds\/plugin-tools: `path`/);
@@ -256,6 +261,36 @@ describe('the page', () => {
 		});
 		const app = await buildTestApp({ plugins: [[client, options]] }, { storage });
 		expect(app.tools!.shortcuts!.state).toEqual({ pins: ['/utils/a'], recent: ['/utils/b'] });
+	});
+
+	it('keeps the key an app already uses', async () => {
+		const storage = memoryStorage({
+			'app:home:shortcuts': JSON.stringify({ pins: ['/utils/a'], recent: [] })
+		});
+		const app = await buildTestApp(
+			{ plugins: [[client, { ...options, storageKey: 'app:home:shortcuts' }]] },
+			{ storage }
+		);
+		expect(app.tools!.shortcuts!.state.pins).toEqual(['/utils/a']);
+		await app.navigate('/utils/b');
+		expect(JSON.parse(storage.get('app:home:shortcuts')!).recent).toEqual(['/utils/b']);
+		expect(storage.get('app:tools:shortcuts')).toBeNull();
+	});
+
+	it('warns about a tool with no route (added from the page entry only)', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		await buildTestApp(
+			{
+				plugins: [
+					toolsFactory(options),
+					definePlugin((a) => a.tools!.add(tool('stray')), { name: 'stray' })
+				]
+			},
+			{ import: importer }
+		);
+		expect(warn).toHaveBeenCalledOnce();
+		expect(warn.mock.calls[0]!.join(' ')).toMatch(/"\/utils\/stray" has no route/);
+		warn.mockRestore();
 	});
 
 	it("with storage blocked, reports a pin that couldn't be saved but not a visit", async () => {

@@ -18,6 +18,7 @@ import {
 import { NAME, ToolList, checkTool, resolveOptions, type ToolsOptions } from './options.js';
 import type { AppTools, ToolShortcuts } from './types.js';
 import type {} from '@xcwds/plugin-shell/client';
+import type {} from '@xcwds/sveltekit/routes';
 
 export type { AppTools, ToolShortcuts } from './types.js';
 
@@ -29,7 +30,8 @@ export default definePlugin(
 
 		const entry = app.storage.entry('shortcuts', {
 			label: 'Home shortcuts',
-			parse: (raw) => parseShortcuts(raw, list.all())
+			parse: (raw) => parseShortcuts(raw, list.all()),
+			...(options.storageKey ? { key: options.storageKey } : {})
 		});
 
 		let state: HomeShortcuts = emptyShortcuts();
@@ -103,6 +105,12 @@ export default definePlugin(
 		let stops: (() => void)[] = [];
 		let closed = false;
 		app.addHook('onBoot', async () => {
+			// A tool added from a page entry only has no title in the header and isn't prerendered.
+			for (const tool of list.all())
+				if (!app.routes.get(tool.path))
+					app.log.warn(
+						`${NAME}: the tool "${tool.path}" has no route. Add it with app.tools.add() from your build entry too.`
+					);
 			load();
 			stops.push(
 				app.storage.onChange((key) => {

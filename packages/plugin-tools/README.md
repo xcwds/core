@@ -64,6 +64,9 @@ The index page and each tool are thin route files in your app (RFC 0001, decisio
   shared screen.
 - **`shortcut: true`** adds the tool to the manifest's `shortcuts` (the home-screen icon's
   long-press menu).
+- **`storageKey`**: where pins and recents are saved (default `app:tools:shortcuts`). Set it to
+  keep a key your app already uses, e.g. `app:home:shortcuts` for an app moving from
+  xcwds.github.io's own code, so users keep their pins.
 
 ## Home and the page entry
 
@@ -71,7 +74,7 @@ With `@xcwds/plugin-shell`, Home shows Pinned (in your order, with Edit to move 
 Recently used (the last three tools opened, newest first, leaving out pinned and private ones).
 Opening a tool records it (`afterNavigate`), quietly: if storage is blocked, nothing is
 reported, while a pin that can't be saved shows the shell's "Couldn't save" toast. Both are
-saved as `app:tools:shortcuts`; tools that no longer exist are dropped when it's read.
+saved as `app:tools:shortcuts` (see `storageKey`); tools that no longer exist are dropped when it's read.
 
 `app.tools` in the page has `list()`, `get(path)`, `index` and `shortcuts` (`state`,
 `subscribe`, `togglePin`, `movePin`, `visit`, `reload`); `HomeShortcuts.svelte` is the Home
@@ -81,4 +84,5 @@ block, should you lay out Home yourself.
 
 A plugin adds its own tool with `app.tools?.add(tool)` while plugins register, from both its
 build entry (which adds the tool's page to the route registry, so the plugin doesn't call
-`app.route()` for it) and its page entry. Register it after `tools()` in the config.
+`app.route()` for it) and its page entry. Register it after `tools()` in the config. A tool with
+no route (added from the page entry only) logs a warning when the app starts.

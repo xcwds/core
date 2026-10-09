@@ -29,6 +29,12 @@ export type ToolsOptions = {
 	/** The index page's emoji. */
 	emoji?: string;
 	items?: Tool[];
+	/**
+	 * Where pins and recents are saved, as a full key starting with the storage prefix. Defaults
+	 * to `app:tools:shortcuts`; set it to keep the key an app already uses (xcwds.github.io:
+	 * `app:home:shortcuts`).
+	 */
+	storageKey?: string;
 };
 
 export type ResolvedToolsOptions = {
@@ -36,6 +42,7 @@ export type ResolvedToolsOptions = {
 	title: string;
 	emoji: string | undefined;
 	items: Tool[];
+	storageKey: string | undefined;
 };
 
 function fail(message: string): never {
@@ -85,7 +92,7 @@ export function resolveOptions(input: unknown = {}): ResolvedToolsOptions {
 		fail('options must be an object.');
 	const options = input as Record<string, unknown>;
 	const unknown = Object.keys(options).filter(
-		(k) => !['path', 'title', 'emoji', 'items', 'prefix'].includes(k)
+		(k) => !['path', 'title', 'emoji', 'items', 'storageKey', 'prefix'].includes(k)
 	);
 	if (unknown.length) fail(`unknown option ${unknown.map((k) => `\`${k}\``).join(', ')}.`);
 	const path = options.path ?? '/tools';
@@ -95,11 +102,22 @@ export function resolveOptions(input: unknown = {}): ResolvedToolsOptions {
 	if (!text(title)) fail('`title` must be a non-empty string.');
 	if (options.emoji !== undefined && !text(options.emoji))
 		fail('`emoji` must be a non-empty string.');
+	if (
+		options.storageKey !== undefined &&
+		(typeof options.storageKey !== 'string' || !/^[^\s:]+:\S+$/.test(options.storageKey))
+	)
+		fail('`storageKey` must be a full storage key such as "app:home:shortcuts".');
 	const items = options.items ?? [];
 	if (!Array.isArray(items)) fail('`items` must be a list of tools.');
 	const list = new ToolList(path);
 	items.forEach((item, i) => list.add(checkTool(item, `\`items[${i}]\``)));
-	return { path, title, emoji: options.emoji as string | undefined, items: list.all() };
+	return {
+		path,
+		title,
+		emoji: options.emoji as string | undefined,
+		items: list.all(),
+		storageKey: options.storageKey as string | undefined
+	};
 }
 
 /** The tools in the order they were added; refuses the index path and duplicates. */
