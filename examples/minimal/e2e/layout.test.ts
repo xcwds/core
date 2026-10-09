@@ -155,7 +155,7 @@ for (const { name, dir, base } of targets) {
 		for (const [size, viewport] of Object.entries(viewports)) {
 			test(`no horizontal scrolling or small tap targets on ${size}`, async ({ page }) => {
 				await page.setViewportSize(viewport);
-				for (const path of ['/', '/hello', '/no-such-page']) {
+				for (const path of ['/', '/hello', '/utils', '/utils/dice', '/no-such-page']) {
 					await gotoHydrated(page, url(path));
 					const overflow = await page.evaluate(
 						() => document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -190,7 +190,7 @@ for (const { name, dir, base } of targets) {
 			await gotoHydrated(page, url('/no-such-page'));
 			await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page not found');
 			const links = page.getByRole('navigation', { name: 'Go to' }).getByRole('link');
-			await expect(links).toHaveText(['🏠 Home', '👋 Hello']);
+			await expect(links).toHaveText(['🏠 Home', '👋 Hello', '🧰 Utils']);
 			await links.nth(1).click();
 			await expect(page).toHaveURL(url('/hello'));
 		});

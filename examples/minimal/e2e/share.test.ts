@@ -97,7 +97,7 @@ for (const { name, dir, base } of targets) {
 			expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url('/hello'));
 		});
 
-		test('no Share button in a browser tab, on excluded pages or on error pages', async ({
+		test('no Share button in a browser tab, on excluded, private or error pages', async ({
 			page
 		}) => {
 			await gotoHydrated(page, url('/hello'));
@@ -110,6 +110,10 @@ for (const { name, dir, base } of targets) {
 			await expect(shareButtons(page)).toHaveCount(0);
 			await gotoHydrated(page, url('/no-such-page'));
 			await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+			await expect(shareButtons(page)).toHaveCount(0);
+			// A private tool's route (@xcwds/plugin-tools).
+			await gotoHydrated(page, url('/utils/journal'));
+			await expect(page.getByRole('heading', { level: 1, name: 'Journal' })).toBeVisible();
 			await expect(shareButtons(page)).toHaveCount(0);
 			await gotoHydrated(page, url('/'));
 			await expect(page.getByRole('button', { name: 'Share Minimal' })).toBeVisible();

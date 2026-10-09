@@ -31,6 +31,8 @@ export type RouteDefinition = {
 	parent?: string;
 	/** Which page container the page uses, so the shell's header lines up with it. */
 	width?: RouteWidth;
+	/** A personal page: plugins keep it out of what they share or list (e.g. the Share button). */
+	private?: boolean;
 };
 
 export type RouteInfo = Omit<RouteDefinition, 'path'> & {
@@ -90,6 +92,8 @@ function check(route: RouteDefinition, plugin: string): void {
 		fail(`the parent of "${route.path}" must be a path starting with "/"`);
 	if (route.width !== undefined && !WIDTHS.includes(route.width))
 		fail(`the width of "${route.path}" must be "narrow" or "wide"`);
+	if (route.private !== undefined && typeof route.private !== 'boolean')
+		fail(`private of "${route.path}" must be true or false`);
 }
 
 /** A registry holding `initial` (routes the build collected), with a function that adds more. */

@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * The header's Share button, added by the plugin. It shows in the installed app only (a
-	 * browser tab has its own Share), never on excluded paths or error pages, and shares the
+	 * browser tab has its own Share), never on excluded paths, private pages or error pages, and shares the
 	 * page's origin and path only.
 	 */
 	import { page } from '$app/state';
@@ -29,10 +29,12 @@
 		if (path === null) return null;
 		// What's left of the pathname is the base path.
 		const base = path === '/' ? pathname.replace(/\/$/, '') : pathname.slice(0, -path.length);
+		const route = app.routes.get(path);
 		return shareData(path, {
 			origin,
 			base,
-			title: app.routes.get(path)?.title,
+			title: route?.title,
+			private: route?.private,
 			appName: brand.name,
 			tagline: brand.tagline,
 			exclude: app.share.exclude

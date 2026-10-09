@@ -19,6 +19,7 @@
 		"@xcwds/plugin-share": "workspace:*",
 		"@xcwds/plugin-shell": "workspace:*",
 		"@xcwds/plugin-theme": "workspace:*",
+		"@xcwds/plugin-tools": "workspace:*",
 		"@xcwds/plugin-update": "workspace:*",
 		"@xcwds/sveltekit": "workspace:*"
 	},

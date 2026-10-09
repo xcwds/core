@@ -97,9 +97,10 @@ paths (and everything under them) highlight it too.
 ## For plugins
 
 - **`app.toast(message, { action?, durationMs? })`** shows a short confirmation in the stack
-  (3 s, or 8 s with an action link `{ label, path, hash? }`; at most three at once).
+  (3 s, or 8 s with an action link `{ label, path, hash? }`; at most three at once). A save that
+  fails (`app.storage.onSaveFailure`) shows one "Couldn't save on this device" toast.
 - **`app.shell.home.add(Component, { props?, order? })`** adds a block to Home (lowest `order`
-  first). While there are none, Home shows `brand.name` and `brand.tagline`.
+  first), below `brand.name` and `brand.tagline`.
 - **`app.shell.header.add(Component, { props?, order? })`** adds a button beside the title.
 - `app.shell.sections` and `app.shell.toasts` (`list()`, `subscribe()`, `dismiss(id)`).
 
