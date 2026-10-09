@@ -1,0 +1,92 @@
+{
+	"name": "@xcwds/plugin-timers",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Timers for @xcwds apps that count against wall-clock end times, so they survive a backgrounded tab and a reload, ring on every page and hold off app updates while running.",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": [
+		"**/*.svelte",
+		"**/*.css"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/xcwds/core.git",
+		"directory": "packages/plugin-timers"
+	},
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./client": {
+			"types": "./dist/client.d.ts",
+			"default": "./dist/client.js"
+		},
+		"./TimerList.svelte": {
+			"types": "./dist/TimerList.svelte.d.ts",
+			"svelte": "./dist/TimerList.svelte",
+			"default": "./dist/TimerList.svelte"
+		},
+		"./Countdown.svelte": {
+			"types": "./dist/Countdown.svelte.d.ts",
+			"svelte": "./dist/Countdown.svelte",
+			"default": "./dist/Countdown.svelte"
+		},
+		"./TimerAlert.svelte": {
+			"types": "./dist/TimerAlert.svelte.d.ts",
+			"svelte": "./dist/TimerAlert.svelte",
+			"default": "./dist/TimerAlert.svelte"
+		},
+		"./styles.css": "./dist/styles.css",
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"scripts": {
+		"build": "svelte-package -i src -o dist",
+		"check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+		"publint": "publint"
+	},
+	"dependencies": {
+		"@xcwds/core": "workspace:^"
+	},
+	"peerDependencies": {
+		"@sveltejs/kit": "^2.20.0",
+		"@xcwds/plugin-shell": "workspace:^",
+		"@xcwds/sveltekit": "workspace:^",
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"@sveltejs/kit": "^2.49.1",
+		"@sveltejs/package": "^2.5.8",
+		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@xcwds/plugin-shell": "workspace:^",
+		"@xcwds/sveltekit": "workspace:^",
+		"@xcwds/testing": "workspace:*",
+		"svelte": "^5.45.6",
+		"svelte-check": "^4.3.4",
+		"typescript": "^5.9.3",
+		"vite": "^7.2.6",
+		"vitest": "^4.0.15"
+	},
+	"keywords": [
+		"pwa",
+		"offline-first",
+		"xcwds",
+		"xcwds-plugin",
+		"timer",
+		"countdown"
+	],
+	"engines": {
+		"node": ">=22.18"
+	},
+	"peerDependenciesMeta": {
+		"@xcwds/plugin-shell": {
+			"optional": true
+		}
+	}
+}

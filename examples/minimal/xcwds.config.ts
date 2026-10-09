@@ -5,6 +5,7 @@ import offline from '@xcwds/plugin-offline';
 import share from '@xcwds/plugin-share';
 import shell from '@xcwds/plugin-shell';
 import theme from '@xcwds/plugin-theme';
+import timers from '@xcwds/plugin-timers';
 import tools from '@xcwds/plugin-tools';
 import update from '@xcwds/plugin-update';
 
@@ -36,6 +37,12 @@ export default defineConfig({
 					shortcut: true
 				},
 				{ path: '/utils/notes', emoji: '📝', name: 'Notes', blurb: 'A scratch pad.' },
+				{
+					path: '/utils/timer',
+					emoji: '⏲️',
+					name: 'Timer',
+					blurb: 'Several labeled timers at once.'
+				},
 				{ path: '/utils/dice', emoji: '🎲', name: 'Dice', blurb: 'Roll a die.' },
 				{ path: '/utils/units', emoji: '📏', name: 'Units', blurb: 'Convert lengths.' },
 				// Private: never under Recently used, shared or a shortcut; named discreetly.
@@ -51,6 +58,7 @@ export default defineConfig({
 		hello({ greeting: 'hi' }),
 		// What others share arrives at /inbox; it stays private, so it has no Share button.
 		share({ target: '/inbox', exclude: ['/inbox'] }),
+		timers({ page: '/utils/timer' }),
 		offline(),
 		update(),
 		theme(),
