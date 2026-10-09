@@ -44,10 +44,14 @@ describe('examples/plugin-hello', () => {
 	});
 
 	it('answers its fetch from the worker entry', async () => {
-		const worker = await buildTestWorker(config, { import: importer, base: '/sub' });
+		const worker = await buildTestWorker(config, {
+			import: importer,
+			base: '/sub',
+			network: () => new Response('from the network')
+		});
 		const response = await worker.fetch('/__xcwds/hello');
 		expect(await response?.text()).toBe('hi from the worker');
-		expect(await worker.fetch('/hello')).toBeUndefined();
+		expect(await (await worker.fetch('/hello'))?.text()).toBe('from the network');
 		await worker.close();
 	});
 });

@@ -13,11 +13,13 @@ describe('buildTestWorker', () => {
 		);
 		const worker = await buildTestWorker(
 			{ plugins: [[offline, { prefix: '/utils/timer' }]] },
-			{ base: '/sub' }
+			{ base: '/sub', network: (request) => new Response(`net ${new URL(request.url).pathname}`) }
 		);
-		expect(await (await worker.fetch('/utils/timer'))?.text()).toBe('timer /sub/utils/timer');
-		expect(await worker.fetch('/utils/timer?skip')).toBeUndefined();
-		expect(await worker.fetch('/other')).toBeUndefined();
+		const text = async (path: string) => (await worker.fetch(path))?.text();
+		expect(await text('/utils/timer')).toBe('timer /sub/utils/timer');
+		// What the hooks leave goes to the default strategy (here, the network).
+		expect(await text('/utils/timer?skip')).toBe('net /sub/utils/timer');
+		expect(await text('/other')).toBe('net /sub/other');
 		// Outside the app or another origin: the worker leaves it alone.
 		expect(await worker.fetch(new Request('http://localhost/utils/timer'))).toBeUndefined();
 		expect(await worker.fetch(new Request('https://example.com/sub/utils/timer'))).toBeUndefined();
@@ -79,6 +81,45 @@ describe('buildTestWorker', () => {
 	});
 });
 
+describe('the default strategy', () => {
+	it('precaches, serves its own version first, and falls back offline', async () => {
+		let online = true;
+		let deployed = 'v1';
+		const worker = await buildTestWorker(
+			{ plugins: [] },
+			{
+				base: '/sub',
+				prerendered: ['/sub/', '/sub/hello'],
+				build: ['/sub/_app/app.js'],
+				version: '1',
+				network: (request) => {
+					if (!online) throw new TypeError('offline');
+					return new Response(`${deployed} ${new URL(request.url).pathname}`);
+				}
+			}
+		);
+		await worker.install();
+		expect((await worker.cache.keys()).map((r) => new URL(r.url).pathname).sort()).toEqual([
+			'/sub/',
+			'/sub/404.html',
+			'/sub/_app/app.js',
+			'/sub/hello'
+		]);
+		await worker.activate();
+		deployed = 'v2';
+		// Precached: this version's copy, even though the network has a new one.
+		expect(await (await worker.fetch('/hello'))?.text()).toBe('v1 /sub/hello');
+		expect(await (await worker.fetch('/data.json'))?.text()).toBe('v2 /sub/data.json');
+		online = false;
+		await expect(worker.fetch('/data.json')).rejects.toThrow('offline');
+		// Without runtime caching, an unknown page offline gets the fallback.
+		expect(await (await worker.fetch('/nope', { mode: 'navigate' }))?.text()).toBe(
+			'v1 /sub/404.html'
+		);
+		expect(worker.skippedWaiting).toBe(false);
+	});
+});
+
 describe('buildTestWorker globals and errors', () => {
 	it('gives hooks in-memory caches and a fake network, and puts the real ones back', async () => {
 		const realFetch = globalThis.fetch;
@@ -126,9 +167,10 @@ describe('buildTestWorker globals and errors', () => {
 
 		const lenient = await buildTestWorker(
 			{ plugins: [failing] },
-			{ strict: false, logLevel: 'silent' }
+			{ strict: false, logLevel: 'silent', network: () => new Response('net') }
 		);
-		expect(await lenient.fetch('/')).toBeUndefined();
+		// The failed hook is skipped; the default strategy answers.
+		expect(await (await lenient.fetch('/'))?.text()).toBe('net');
 		expect(lenient.errors).toEqual([
 			expect.objectContaining({ message: expect.stringMatching(/fetch broke/) })
 		]);

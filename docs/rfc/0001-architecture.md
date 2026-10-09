@@ -121,7 +121,10 @@ Vite plugin's virtual modules don't resolve there.
 `@xcwds/sveltekit/worker` with the `$service-worker` lists. Normal package resolution works in
 SvelteKit's worker build, so nothing else is needed. The runtime runs `onFetch` hooks first and
 otherwise serves a baseline offline strategy (precache, then this version's cache first), so
-every app installs and works offline; `@xcwds/plugin-offline` (#11) builds on it.
+every app installs and works offline. The strategy reads a cache policy (`app.worker.policy`:
+extra precache paths, exclusions, the offline fallback page, runtime caching) once every worker
+plugin has registered, so `@xcwds/plugin-offline` (#11) changes the policy instead of answering
+fetches itself, and other plugins' `onFetch` hooks still run first.
 
 SvelteKit 3 builds the worker as a Vite environment (`serviceWorker`), so virtual modules would
 work there. The generated-file approach works on both, so it stays the single mechanism until
@@ -181,7 +184,9 @@ hooks form a chain where the first returned `Response` wins (like `onRequest` pl
 ### 8. Close means "safe to reload"
 
 A reload swaps code out from under the user. `onBeforeReload` hooks return a reason to wait (a
-running timer); the update banner shows it (#12). `app.close()` runs `onClose` hooks in reverse
+running timer), as does a name passed to `app.update.markBusy(name, isBusy)` for state a
+component already holds; the update banner shows them (#12). The new worker never calls
+`skipWaiting()` on install: it waits until the user taps Update. `app.close()` runs `onClose` hooks in reverse
 registration order, in tests and on Vite HMR dispose, so dev reloads don't stack listeners.
 
 ### 9. Everything honours the base path
