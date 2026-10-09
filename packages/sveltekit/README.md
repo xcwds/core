@@ -69,9 +69,13 @@ export const prerender = true;
   `@xcwds/plugin-offline`'s job, #11). A new version waits until the old one's tabs have closed.
   A static file with the same path as a generated one (`manifest.webmanifest`, `icons/*`,
   `favicon.ico`) fails the build, since it would replace the generated file.
-- **`<App>`** provides the app, boots it after mount (`onBoot`, then `onReady`) and turns
+- **`<App>`** provides the app, marks `<html data-hydrated>` once mounted (what `gotoHydrated`
+  in `@xcwds/testing` waits for), boots it after mount (`onBoot`, then `onReady`) and turns
   navigations into `onNavigate` and `afterNavigate`, and page visibility into `onHidden` /
   `onVisible`. Vite HMR closes the old app.
+- **`@xcwds/sveltekit/routes`** is the route registry on its own (`decorateRoutes`,
+  `normalizePath`, `stripBase`), with no Svelte or Vite imports, for tools such as
+  `@xcwds/testing`.
 
 ### Navigation guards
 

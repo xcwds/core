@@ -18,3 +18,11 @@
 	</header>
 	<main>{@render children()}</main>
 </App>
+
+<style>
+	/* Tap targets of at least 44px (`auditTapTargets` in the e2e tests checks every page). */
+	:global(button) {
+		min-height: 44px;
+		min-width: 44px;
+	}
+</style>

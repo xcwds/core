@@ -5,11 +5,13 @@ import { extname, join, resolve as resolvePath, sep } from 'node:path';
 const TYPES: Record<string, string> = {
 	'.html': 'text/html',
 	'.js': 'text/javascript',
+	'.mjs': 'text/javascript',
 	'.css': 'text/css',
 	'.json': 'application/json',
 	'.webmanifest': 'application/manifest+json',
 	'.png': 'image/png',
 	'.jpg': 'image/jpeg',
+	'.webp': 'image/webp',
 	'.ico': 'image/x-icon',
 	'.svg': 'image/svg+xml',
 	'.txt': 'text/plain',
@@ -25,8 +27,9 @@ async function resolveFile(dir: string, pathname: string): Promise<string | null
 	}
 	// Never serve files outside the build directory (e.g. via `..`).
 	const root = resolvePath(dir);
-	if (base !== root && !base.startsWith(root + sep)) return null;
-	for (const candidate of [base, `${base}.html`, join(base, 'index.html')]) {
+	const inside = (path: string) => path.startsWith(root + sep);
+	if (base !== root && !inside(base)) return null;
+	for (const candidate of [base, `${base}.html`, join(base, 'index.html')].filter(inside)) {
 		try {
 			if ((await stat(candidate)).isFile()) return candidate;
 		} catch {
@@ -36,16 +39,27 @@ async function resolveFile(dir: string, pathname: string): Promise<string | null
 	return null;
 }
 
+export type StaticServer = {
+	/** `http://127.0.0.1:<port>`. */
+	origin: string;
+	/** The full URL of an app path (`/hello` → `<origin><base>/hello`). */
+	url(path: string): string;
+	close(): Promise<void>;
+};
+
 /**
  * Serves a build directory the way GitHub Pages does: `/page` finds `page.html`, and unknown
  * paths get `404.html` with a 404 status. Unlike `vite preview`, nothing is rendered on the fly.
  * With a `base` (a project site, `user.github.io/repo`), the build is served under it and
- * nothing else exists. Resolves to the server's origin and a function that stops it.
+ * nothing else exists. Files are read on every request, so a test can change them (see
+ * `serveDeployment`).
  */
 export async function serveStatic(
 	dir: string,
 	{ base = '' }: { base?: string } = {}
-): Promise<{ origin: string; close: () => Promise<void> }> {
+): Promise<StaticServer> {
+	if (base !== '' && (!base.startsWith('/') || base.endsWith('/')))
+		throw new Error(`The base path "${base}" must be "" or start with "/" and not end with "/".`);
 	const server = createServer(async (req, res) => {
 		try {
 			const pathname = new URL(req.url ?? '/', 'http://x').pathname;
@@ -69,8 +83,15 @@ export async function serveStatic(
 	await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
 	const address = server.address();
 	const port = typeof address === 'object' && address ? address.port : 0;
+	const origin = `http://127.0.0.1:${port}`;
 	return {
-		origin: `http://127.0.0.1:${port}`,
-		close: () => new Promise((resolve) => server.close(() => resolve()))
+		origin,
+		url: (path) => `${origin}${base}${path.startsWith('/') ? path : `/${path}`}`,
+		close: () =>
+			new Promise((resolve) => {
+				server.close(() => resolve());
+				// Browsers keep connections alive; don't wait for them to go idle.
+				server.closeAllConnections();
+			})
 	};
 }

@@ -13,6 +13,7 @@ and the design is [RFC 0001](docs/rfc/0001-architecture.md).
 | ---------------------------------------- | ------------------------------------------------------------------------- |
 | [`@xcwds/core`](packages/core)           | The kernel: plugins, hooks, decorators, config, storage, settings         |
 | [`@xcwds/sveltekit`](packages/sveltekit) | The SvelteKit integration: Vite plugin, config, hooks, `<App>`, `persist` |
+| [`@xcwds/testing`](packages/testing)     | Test kit: `buildTestApp()` for Vitest, Playwright helpers and presets     |
 
 ## Repository
 

@@ -1,8 +1,17 @@
 // examples/minimal on @xcwds/sveltekit (#10): static builds served the way GitHub Pages serves
 // them, at the root (`build/`) and under a base path (`build-sub/`, built with BASE_PATH=/sub).
 import { expect, test, type Page } from '@playwright/test';
+import {
+	auditTapTargets,
+	gotoHydrated,
+	pageVersion,
+	serveDeployment,
+	serveStatic,
+	updateServiceWorker,
+	waitForServiceWorker,
+	type StaticServer
+} from '@xcwds/testing/playwright';
 import { fileURLToPath } from 'node:url';
-import { serveStatic } from './static-server';
 
 const targets = [
 	{ name: 'at the root', dir: 'build', base: '' },
@@ -16,11 +25,12 @@ async function booted(page: Page) {
 
 for (const { name, dir, base } of targets) {
 	test.describe(name, () => {
-		let server: Awaited<ReturnType<typeof serveStatic>>;
-		const url = (path: string) => `${server.origin}${base}${path}`;
+		const build = fileURLToPath(new URL(`../${dir}`, import.meta.url));
+		let server: StaticServer;
+		const url = (path: string) => server.url(path);
 
 		test.beforeAll(async () => {
-			server = await serveStatic(fileURLToPath(new URL(`../${dir}`, import.meta.url)), { base });
+			server = await serveStatic(build, { base });
 		});
 		test.afterAll(() => server.close());
 
@@ -36,8 +46,7 @@ for (const { name, dir, base } of targets) {
 			const html = await (await page.request.get(url('/hello'))).text();
 			expect(html).toContain('hi from a plugin');
 			expect(html).toContain('<title>Hello</title>');
-			await page.goto(url('/'));
-			await booted(page);
+			await gotoHydrated(page, url('/'));
 			await page.getByRole('link', { name: "A plugin's page" }).click();
 			await expect(page).toHaveURL(url('/hello'));
 			await expect(page.locator('html')).toHaveAttribute('data-path', '/hello');
@@ -182,6 +191,15 @@ for (const { name, dir, base } of targets) {
 			});
 		});
 
+		test('every control is a 44px tap target on a phone', async ({ page }) => {
+			await page.setViewportSize({ width: 390, height: 844 });
+			for (const path of ['/', '/hello', '/no-such-page']) {
+				await gotoHydrated(page, url(path));
+				await booted(page);
+				expect(await auditTapTargets(page), path).toEqual([]);
+			}
+		});
+
 		test('the pre-paint script runs before first paint under a hash CSP', async ({ page }) => {
 			const errors: string[] = [];
 			page.on('console', (m) => {
@@ -242,18 +260,9 @@ for (const { name, dir, base } of targets) {
 
 			/** Opens the home page and waits until the service worker controls it. */
 			async function controlled(page: Page) {
-				await page.goto(url('/'));
+				await gotoHydrated(page, url('/'));
 				await booted(page);
-				return page.evaluate(async () => {
-					const registration = await navigator.serviceWorker.ready;
-					if (!navigator.serviceWorker.controller)
-						await new Promise((resolve) =>
-							navigator.serviceWorker.addEventListener('controllerchange', resolve, {
-								once: true
-							})
-						);
-					return registration.scope;
-				});
+				return waitForServiceWorker(page);
 			}
 
 			test('installs as a PWA', async ({ page }) => {
@@ -300,6 +309,39 @@ for (const { name, dir, base } of targets) {
 				await page.goto(url('/no-such-page'));
 				await expect(page.getByTestId('error')).toHaveText('Page not found');
 				await context.setOffline(false);
+			});
+
+			test('a new version installs and waits; the page keeps the old one', async ({ page }) => {
+				const deployment = await serveDeployment(build, { base });
+				try {
+					await gotoHydrated(page, deployment.url('/'));
+					await booted(page);
+					await waitForServiceWorker(page);
+					await deployment.deployNewVersion('v2');
+					// There is no skipWaiting(): the new worker waits for the old one's tabs to close.
+					expect(await updateServiceWorker(page)).toBe('waiting');
+					// Precached pages come from the old version's cache, even on a reload.
+					await page.reload();
+					await booted(page);
+					expect(await pageVersion(page)).toBe('original');
+					// The old worker still controls it, and the new one is still waiting.
+					expect(
+						await page.evaluate(async () => {
+							const registration = await navigator.serviceWorker.ready;
+							const controller = navigator.serviceWorker.controller;
+							return [
+								controller !== null && controller === registration.active,
+								registration.waiting?.state
+							];
+						})
+					).toEqual([true, 'installed']);
+					// The network has the new version.
+					expect(await (await page.request.get(deployment.url('/'))).text()).toContain(
+						'content="v2"'
+					);
+				} finally {
+					await deployment.close();
+				}
 			});
 		});
 	});

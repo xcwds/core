@@ -145,6 +145,9 @@ export function startApp(): void {
 	});
 
 	onMount(() => {
+		// Hydrated: input from now on reaches the app (`gotoHydrated` in @xcwds/testing waits
+		// for this).
+		document.documentElement.dataset.hydrated = '';
 		const stops: (() => void)[] = [];
 		// The first page was loaded, not navigated to: its guards run once the app has booted.
 		// Captured now: by then the user may have navigated, and the redirect is only for this.
