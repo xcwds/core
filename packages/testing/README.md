@@ -111,7 +111,7 @@ expect(await auditTapTargets(page)).toEqual([]); // every control at least 44×4
 - **`gotoHydrated(page, url)`** navigates and waits until `<App>` has mounted, so typed input
   and clicks aren't lost or doubled.
 - **`auditTapTargets(page, { min })`** lists every visible control smaller than 44 px either way.
-  Inline text links are exempt, and a checkbox counts its label.
+  Inline text links are exempt, and a checkbox or radio button counts its label.
 - **`serveStatic(dir, { base })`** serves a build the way GitHub Pages does: `/page` finds
   `page.html`, unknown paths get `404.html` with a 404, and with a `base` nothing outside it
   exists. Files are read on each request and never from outside `dir`.

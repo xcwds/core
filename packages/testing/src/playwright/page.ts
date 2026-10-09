@@ -16,7 +16,7 @@ export async function gotoHydrated(
 /**
  * Every visible control smaller than `min` px (44 by default) in either direction, as
  * `"name (w×h)"`: expect it to be empty. Inline text links are exempt (WCAG 2.5.8), and a
- * checkbox counts its label's hit area. Ported from xcwds.github.io's app-extras test.
+ * checkbox or radio button counts its label's hit area. Ported from xcwds.github.io's app-extras test.
  */
 export async function auditTapTargets(page: Page, { min = 44 }: { min?: number } = {}) {
 	return page.evaluate((min) => {
@@ -24,8 +24,8 @@ export async function auditTapTargets(page: Page, { min = 44 }: { min?: number }
 			.filter((el) => (el as HTMLElement).offsetParent !== null)
 			.filter((el) => getComputedStyle(el).display !== 'inline')
 			.map((el) => {
-				const target =
-					(el as HTMLInputElement).type === 'checkbox' ? (el.closest('label') ?? el) : el;
+				const type = (el as HTMLInputElement).type;
+				const target = type === 'checkbox' || type === 'radio' ? (el.closest('label') ?? el) : el;
 				const { width, height } = target.getBoundingClientRect();
 				const name = el.getAttribute('aria-label') || el.textContent?.trim() || el.tagName;
 				return { name: name.slice(0, 40), width: Math.round(width), height: Math.round(height) };

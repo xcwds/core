@@ -1,0 +1,6 @@
+/*
+ * Tailwind v4: `@import '@xcwds/plugin-theme/tailwind.css';` after `@import 'tailwindcss';`.
+ * `dark:` follows the app's theme (data-color-scheme on <html>, set before first paint), not
+ * only the OS. It never uses data-theme, which UI kits such as Skeleton own.
+ */
+@custom-variant dark (&:where([data-color-scheme='dark'], [data-color-scheme='dark'] *));

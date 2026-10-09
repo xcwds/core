@@ -15,6 +15,7 @@
 		"@xcwds-example/plugin-hello": "workspace:*",
 		"@xcwds/core": "workspace:*",
 		"@xcwds/plugin-offline": "workspace:*",
+		"@xcwds/plugin-theme": "workspace:*",
 		"@xcwds/plugin-update": "workspace:*",
 		"@xcwds/sveltekit": "workspace:*"
 	},
