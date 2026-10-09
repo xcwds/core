@@ -85,6 +85,9 @@ for (const { name, dir, base } of targets) {
 				page.getByTestId('toast').filter({ hasText: 'All data cleared.' })
 			).toBeVisible();
 			await expect(page.getByRole('button', { name: 'Clear Home shortcuts' })).toBeDisabled();
+			// Nothing writes itself straight back.
+			await expect(page.getByRole('button', { name: 'Clear all data' })).toBeDisabled();
+			expect(await page.evaluate(() => localStorage.length)).toBe(0);
 
 			await page.getByLabel('Backup file').setInputFiles(file);
 			const preview = page.getByTestId('import-preview');

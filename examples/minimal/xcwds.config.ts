@@ -1,5 +1,6 @@
 import hello from '@xcwds-example/plugin-hello';
 import { defineConfig } from '@xcwds/core';
+import changelog from '@xcwds/plugin-changelog';
 import install from '@xcwds/plugin-install';
 import offline from '@xcwds/plugin-offline';
 import settings from '@xcwds/plugin-settings';
@@ -9,6 +10,7 @@ import theme from '@xcwds/plugin-theme';
 import timers from '@xcwds/plugin-timers';
 import tools from '@xcwds/plugin-tools';
 import update from '@xcwds/plugin-update';
+import { changelog as notes } from './src/lib/changelog.js';
 
 export default defineConfig({
 	brand: {
@@ -64,6 +66,7 @@ export default defineConfig({
 		timers({ page: '/utils/timer' }),
 		offline(),
 		update(),
+		changelog({ entries: notes }),
 		theme(),
 		install()
 	]
