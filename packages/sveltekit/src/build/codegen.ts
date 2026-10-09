@@ -33,6 +33,7 @@ function imports(state: BuildState, entry: 'client' | 'worker') {
 export function clientModule(state: BuildState): string {
 	const data: ClientData = {
 		name: state.config.brand.name,
+		tagline: state.config.brand.tagline,
 		base: state.base,
 		storagePrefix: state.config.storage.prefix,
 		routes: state.routes,

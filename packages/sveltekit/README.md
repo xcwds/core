@@ -104,7 +104,7 @@ registry never include it.
 ## In components
 
 ```ts
-import { persist, routeInfo, settings, useApp } from '@xcwds/sveltekit';
+import { appPath, brand, persist, routeInfo, settings, useApp } from '@xcwds/sveltekit';
 
 const app = useApp(); // the kernel app, with every plugin's decorators
 persist(
@@ -114,6 +114,8 @@ persist(
 ); // loads after mount, saves on change
 settings.current.theme; // defaults until `settings.ready`, then the saved values, reactively
 routeInfo(page.url.pathname); // { title, emoji, parent, width } of the current page
+appPath(page.url.pathname); // '/hello' under any base path (never relative), or null outside
+brand.name; // and brand.tagline, from xcwds.config
 ```
 
 ## Plugin packages

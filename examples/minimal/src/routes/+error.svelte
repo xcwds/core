@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import ErrorPage from '@xcwds/plugin-shell/ErrorPage.svelte';
 </script>
 
-<p data-testid="error">{page.status === 404 ? 'Page not found' : 'Something went wrong'}</p>
+<ErrorPage />

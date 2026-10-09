@@ -10,3 +10,11 @@ export function routeInfo(pathname: string): RouteInfo | undefined {
 	const path = stripBase(pathname, data.base);
 	return path === null ? undefined : getApp().routes.get(path);
 }
+
+/**
+ * A pathname as the browser shows it, without the base path (what routes, hooks and sections
+ * use), or null outside the app. Unlike `$app/paths`, never relative, even while prerendering.
+ */
+export function appPath(pathname: string): string | null {
+	return stripBase(pathname, data.base);
+}

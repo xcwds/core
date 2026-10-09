@@ -2,6 +2,7 @@ import hello from '@xcwds-example/plugin-hello';
 import { defineConfig } from '@xcwds/core';
 import install from '@xcwds/plugin-install';
 import offline from '@xcwds/plugin-offline';
+import shell from '@xcwds/plugin-shell';
 import theme from '@xcwds/plugin-theme';
 import update from '@xcwds/plugin-update';
 
@@ -12,5 +13,17 @@ export default defineConfig({
 		icon: 'icon.svg',
 		themeColor: { light: '#dbeafe', dark: '#030712' }
 	},
-	plugins: [hello({ greeting: 'hi' }), offline(), update(), theme(), install()]
+	plugins: [
+		shell({
+			sections: [
+				{ path: '/', label: 'Home', emoji: '🏠' },
+				{ path: '/hello', label: 'Hello', emoji: '👋' }
+			]
+		}),
+		hello({ greeting: 'hi' }),
+		offline(),
+		update(),
+		theme(),
+		install()
+	]
 });

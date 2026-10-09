@@ -18,7 +18,14 @@
 	<button type="button" data-testid="count" onclick={() => count++}>Pressed {count} times</button>
 </p>
 <p>
-	<button type="button" data-testid="greeting" onclick={() => settings.set({ greeting: 'hey' })}>
+	<button
+		type="button"
+		data-testid="greeting"
+		onclick={() => {
+			settings.set({ greeting: 'hey' });
+			app.toast?.('Greeting saved.');
+		}}
+	>
 		Say hey instead
 	</button>
 </p>

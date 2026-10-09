@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { base, resolve } from '$app/paths';
+	import Home from '@xcwds/plugin-shell/Home.svelte';
+	import NavPicker from '@xcwds/plugin-shell/NavPicker.svelte';
 	import InstallCard from '@xcwds/plugin-install/InstallCard.svelte';
 	import ThemePicker from '@xcwds/plugin-theme/ThemePicker.svelte';
 	import type {} from '@xcwds/plugin-update/client';
@@ -27,17 +29,20 @@
 	];
 </script>
 
-<p><a href={resolve('/hello')}>A plugin's page</a></p>
-<ThemePicker />
-<InstallCard />
-{#if mounted}
-	<button type="button" data-testid="work" onclick={() => (working = !working)}>
-		{working ? 'Stop working' : 'Start working'}
-	</button>
-	<ul>
-		{#each guarded as path (path)}
-			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-			<li><a href={`${base}${path}`}>Guarded {path}</a></li>
-		{/each}
-	</ul>
-{/if}
+<Home>
+	<p><a href={resolve('/hello')}>A plugin's page</a></p>
+	<ThemePicker />
+	<InstallCard />
+	{#if mounted}
+		<button type="button" data-testid="work" onclick={() => (working = !working)}>
+			{working ? 'Stop working' : 'Start working'}
+		</button>
+		<ul>
+			{#each guarded as path (path)}
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+				<li><a href={`${base}${path}`}>Guarded {path}</a></li>
+			{/each}
+		</ul>
+	{/if}
+	<NavPicker />
+</Home>
