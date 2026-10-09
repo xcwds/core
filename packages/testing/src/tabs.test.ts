@@ -51,6 +51,10 @@ describe('sharedStorage', () => {
 		await shared.settled();
 		expect(backing.keys()).toEqual([]);
 		expect(seenA).toEqual([[null, null, null]]);
+		// Clearing an empty store changes nothing.
+		shared.clear();
+		await shared.settled();
+		expect(seenA).toHaveLength(1);
 	});
 
 	it('settles events that other events cause', async () => {

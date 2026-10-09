@@ -1,112 +1,253 @@
 /**
- * `buildTestWorker()`: a service worker's plugins without a browser. Runs `onFetch` hooks
- * against a `Request` (with route prefixes), and `onInstall`, `onActivate` and `onMessage` with
- * an in-memory cache. The integration's default caching strategy isn't included: a response is
- * what the plugins answer, or `undefined` when they leave it to the default.
+ * `buildTestWorker()`: a service worker's plugins without a browser, set up and filtered as
+ * `@xcwds/sveltekit/worker` does it (`@xcwds/sveltekit/routes`). Runs `onFetch` hooks against
+ * a `Request`, and `onInstall`, `onActivate` and `onMessage`, with in-memory caches. While it is
+ * open, `caches` and `fetch` are the worker's: the caches in memory, and `fetch` answered by
+ * the `network` option (there is no network in tests). The integration's default caching
+ * strategy isn't included: a response is what the plugins answer, or `undefined` when they
+ * leave it to the default.
  */
-import { createApp, memoryStorage, type App, type LogLevel } from '@xcwds/core';
-import { decorateRoutes, stripBase } from '@xcwds/sveltekit/routes';
+import { memoryStorage, type App, type LogLevel } from '@xcwds/core';
+import { setupApp, workerPath } from '@xcwds/sveltekit/routes';
+import { closeAfterTest, ErrorTrap } from './errors.js';
 import { prepare, type Importer, type TestInput } from './plugins.js';
+
+type Network = (request: Request) => Response | Promise<Response>;
 
 export type TestWorkerOptions = {
 	/** SvelteKit's `paths.base`. String paths you pass never include it. */
 	base?: string;
 	/** The origin requests are made on. Defaults to `http://localhost`. */
 	origin?: string;
-	/** Answers `cache.add()` / `addAll()` (there is no network in tests); 404 by default. */
-	network?: (request: Request) => Response | Promise<Response>;
+	/**
+	 * Answers `fetch()` and `cache.add()` / `addAll()` while the worker is open. By default
+	 * every request fails, as offline.
+	 */
+	network?: Network;
 	import?: Importer;
+	/** Errors reported to `onError` make the next operation reject; see `buildTestApp`. */
+	strict?: boolean;
 	logLevel?: LogLevel;
 };
 
-/** The part of the Cache API plugins usually need, kept in memory. */
+const offline: Network = (request) => {
+	throw new TypeError(`No network in tests (${request.url}); pass \`network\` to answer it.`);
+};
+
+/** The part of the Cache API plugins use, kept in memory, with the real one's checks. */
 export class MemoryCache {
 	readonly #entries = new Map<string, Response>();
-	readonly #network: (request: Request) => Response | Promise<Response>;
+	readonly #network: Network;
 	readonly #origin: string;
 
-	constructor(origin: string, network?: TestWorkerOptions['network']) {
+	constructor(origin: string, network: Network = offline) {
 		this.#origin = origin;
-		this.#network = network ?? (() => new Response('Not found', { status: 404 }));
+		this.#network = network;
 	}
 
-	#key(request: RequestInfo | URL): string {
-		const url = request instanceof Request ? request.url : String(request);
-		return new URL(url, this.#origin).href;
+	#request(request: RequestInfo | URL): Request {
+		return request instanceof Request
+			? request
+			: new Request(new URL(String(request), this.#origin));
 	}
 
-	async match(request: RequestInfo | URL): Promise<Response | undefined> {
-		return this.#entries.get(this.#key(request))?.clone();
+	async match(
+		request: RequestInfo | URL,
+		options: { ignoreMethod?: boolean } = {}
+	): Promise<Response | undefined> {
+		const req = this.#request(request);
+		if (req.method !== 'GET' && !options.ignoreMethod) return undefined;
+		return this.#entries.get(req.url)?.clone();
 	}
 	async put(request: RequestInfo | URL, response: Response): Promise<void> {
-		this.#entries.set(this.#key(request), response.clone());
+		const req = this.#request(request);
+		check(req, response);
+		this.#entries.set(req.url, response.clone());
 	}
 	async add(request: RequestInfo | URL): Promise<void> {
-		const req = request instanceof Request ? request : new Request(this.#key(request));
-		const response = await this.#network(req);
-		if (!response.ok) throw new TypeError(`Request for ${req.url} failed: ${response.status}`);
-		await this.put(req, response);
+		await this.addAll([request]);
 	}
+	/** Fetches every request, then stores them all, or nothing if one fails. */
 	async addAll(requests: (RequestInfo | URL)[]): Promise<void> {
-		for (const r of requests) await this.add(r);
+		const list = requests.map((r) => this.#request(r));
+		const urls = new Set<string>();
+		for (const req of list) {
+			if (req.method !== 'GET')
+				throw new TypeError(`Only GET requests can be cached (${req.url}).`);
+			if (urls.has(req.url))
+				throw new DOMException(`${req.url} is in the list twice.`, 'InvalidStateError');
+			urls.add(req.url);
+		}
+		const responses = await Promise.all(list.map((req) => this.#network(req)));
+		responses.forEach((response, i) => {
+			if (!response.ok)
+				throw new TypeError(`Request for ${list[i]!.url} failed: ${response.status}`);
+			check(list[i]!, response);
+		});
+		list.forEach((req, i) => this.#entries.set(req.url, responses[i]!.clone()));
 	}
 	async delete(request: RequestInfo | URL): Promise<boolean> {
-		return this.#entries.delete(this.#key(request));
+		return this.#entries.delete(this.#request(request).url);
 	}
 	async keys(): Promise<Request[]> {
 		return [...this.#entries.keys()].map((url) => new Request(url));
 	}
 }
 
+function check(request: Request, response: Response) {
+	if (request.method !== 'GET')
+		throw new TypeError(`Only GET requests can be cached (${request.url}).`);
+	if (response.status === 206)
+		throw new TypeError(`A partial response can't be cached (${request.url}).`);
+	const vary = response.headers.get('vary') ?? '';
+	if (vary.split(',').some((v) => v.trim() === '*'))
+		throw new TypeError(`A response with "Vary: *" can't be cached (${request.url}).`);
+}
+
+/** `CacheStorage` in memory. */
+export class MemoryCacheStorage {
+	readonly #caches = new Map<string, MemoryCache>();
+	readonly #origin: string;
+	readonly #network: Network;
+
+	constructor(origin: string, network: Network = offline) {
+		this.#origin = origin;
+		this.#network = network;
+	}
+
+	async open(name: string): Promise<MemoryCache> {
+		let cache = this.#caches.get(name);
+		if (!cache) this.#caches.set(name, (cache = new MemoryCache(this.#origin, this.#network)));
+		return cache;
+	}
+	async has(name: string): Promise<boolean> {
+		return this.#caches.has(name);
+	}
+	async delete(name: string): Promise<boolean> {
+		return this.#caches.delete(name);
+	}
+	async keys(): Promise<string[]> {
+		return [...this.#caches.keys()];
+	}
+	async match(
+		request: RequestInfo | URL,
+		options: { cacheName?: string; ignoreMethod?: boolean } = {}
+	): Promise<Response | undefined> {
+		const names = options.cacheName ? [options.cacheName] : this.#caches.keys();
+		for (const name of names) {
+			const found = await this.#caches.get(name)?.match(request, options);
+			if (found) return found;
+		}
+		return undefined;
+	}
+}
+
 export type TestWorker = {
 	app: App;
+	/** The worker's caches (also `globalThis.caches` while it is open). */
+	caches: MemoryCacheStorage;
+	/** The cache `onInstall` hooks get. */
 	cache: MemoryCache;
+	/** Every error reported to `onError`, in order. */
+	errors: readonly unknown[];
 	/** Runs `onFetch` hooks (GETs only, as the worker does); a string is an app path (without the base). */
 	fetch(input: Request | string, init?: RequestInit): Promise<Response | undefined>;
 	/** Runs `onInstall` hooks with `cache`. */
 	install(): Promise<MemoryCache>;
 	activate(): Promise<void>;
 	message(data: unknown): Promise<void>;
+	/** Closes the app and puts the real `caches` and `fetch` back. */
 	close(): Promise<void>;
 };
 
-/** Boots a worker for a unit test: plugin functions, pairs, or descriptors (their `./worker`). */
+/** The test worker whose `caches` and `fetch` are installed, if one is. */
+let active: TestWorker | null = null;
+
+function stubGlobals(stubs: Record<string, unknown>): () => void {
+	const saved = Object.keys(stubs).map(
+		(key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const
+	);
+	for (const [key, value] of Object.entries(stubs))
+		Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
+	return () => {
+		for (const [key, descriptor] of saved)
+			if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+			else delete (globalThis as Record<string, unknown>)[key];
+	};
+}
+
+/**
+ * Boots a worker for a unit test: plugin functions, pairs, or descriptors (their `./worker`).
+ * One test worker is open at a time. Inside a test it closes when the test finishes.
+ */
 export async function buildTestWorker(
 	input: TestInput,
 	options: TestWorkerOptions = {}
 ): Promise<TestWorker> {
+	if (active) throw new Error('Another test worker is open; close it first.');
 	const base = options.base ?? '';
-	const origin = options.origin ?? 'http://localhost';
+	const origin = new URL(options.origin ?? 'http://localhost').origin;
 	const logLevel = options.logLevel ?? 'warn';
+	const network = options.network ?? offline;
 	const prepared = await prepare(input, 'worker', { importer: options.import, logLevel });
-	const app = createApp({
-		storagePrefix: prepared.storagePrefix,
-		appName: prepared.name,
-		logLevel,
-		storage: memoryStorage()
+	if (active) throw new Error('Another test worker is open; close it first.');
+	const caches = new MemoryCacheStorage(origin, network);
+	const cache = await caches.open('xcwds:test');
+	const restore = stubGlobals({
+		caches,
+		fetch: async (input: RequestInfo | URL, init?: RequestInit) =>
+			network(
+				input instanceof Request && !init
+					? input
+					: new Request(input instanceof Request ? input : new URL(String(input), origin), init)
+			)
 	});
-	decorateRoutes(app, prepared.routes);
-	for (const [plugin, opts] of prepared.plugins) app.register(plugin, { ...opts } as never);
-	await app.ready();
-	const cache = new MemoryCache(origin, options.network);
-	return {
+	const trap = new ErrorTrap(options.strict ?? true);
+	const app = setupApp({ ...prepared, storage: memoryStorage(), logLevel });
+	trap.watch(app);
+	let closed = false;
+	const worker: TestWorker = {
 		app,
+		caches,
 		cache,
-		async fetch(input, init) {
-			const request =
-				typeof input === 'string' ? new Request(new URL(base + input, origin), init) : input;
-			const url = new URL(request.url);
-			const path = url.origin === origin ? stripBase(url.pathname, base) : null;
-			// The integration's worker leaves non-GETs, other origins and paths outside the app alone.
-			if (request.method !== 'GET' || path === null) return undefined;
-			return (await app.hooks.first('onFetch', [request, url], { path })) ?? undefined;
-		},
-		async install() {
-			await app.hooks.run('onInstall', [cache]);
-			return cache;
-		},
-		activate: () => app.hooks.run('onActivate', []),
-		message: (data) => app.hooks.run('onMessage', [data]),
-		close: () => app.close()
+		errors: trap.errors,
+		fetch: (input, init) =>
+			trap.run(async () => {
+				const request =
+					typeof input === 'string' ? new Request(new URL(base + input, origin), init) : input;
+				const path = workerPath(request, origin, base);
+				// The integration's worker leaves non-GETs, other origins and paths outside the app alone.
+				if (path === null) return undefined;
+				const url = new URL(request.url);
+				return (await app.hooks.first('onFetch', [request, url], { path })) ?? undefined;
+			}),
+		install: () =>
+			trap.run(async () => {
+				await app.hooks.run('onInstall', [cache]);
+				return cache;
+			}),
+		activate: () => trap.run(() => app.hooks.run('onActivate', [])),
+		message: (data) => trap.run(() => app.hooks.run('onMessage', [data])),
+		async close() {
+			if (closed) return;
+			closed = true;
+			try {
+				await app.close();
+			} finally {
+				restore();
+				active = null;
+			}
+			trap.check();
+		}
 	};
+	active = worker;
+	try {
+		await app.ready();
+		trap.check();
+	} catch (error) {
+		await worker.close().catch(() => {});
+		throw error;
+	}
+	closeAfterTest(() => worker.close());
+	return worker;
 }

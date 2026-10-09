@@ -73,9 +73,12 @@ export const prerender = true;
   in `@xcwds/testing` waits for), boots it after mount (`onBoot`, then `onReady`) and turns
   navigations into `onNavigate` and `afterNavigate`, and page visibility into `onHidden` /
   `onVisible`. Vite HMR closes the old app.
-- **`@xcwds/sveltekit/routes`** is the route registry on its own (`decorateRoutes`,
-  `normalizePath`, `stripBase`), with no Svelte or Vite imports, for tools such as
-  `@xcwds/testing`.
+- **`@xcwds/sveltekit/routes`** is the framework-free core (no Svelte, SvelteKit or Vite
+  imports) that `<App>`, the service worker and `@xcwds/testing` share, so they can't drift
+  apart: the route registry (`decorateRoutes`), `setupApp` (create the app, add the routes,
+  register the plugins), `routeOf` (the route hooks see for a URL), `askGuards` and `decide`
+  (what guards' answers mean: cancel, redirect, the 5-redirect limit, the first page) and
+  `workerPath` (the requests the worker handles).
 
 ### Navigation guards
 

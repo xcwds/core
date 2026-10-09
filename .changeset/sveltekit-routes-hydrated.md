@@ -2,5 +2,6 @@
 '@xcwds/sveltekit': patch
 ---
 
-`<App>` marks `<html data-hydrated>` once mounted, and the route registry is also exported on
-its own as `@xcwds/sveltekit/routes`.
+`<App>` marks `<html data-hydrated>` once mounted. `@xcwds/sveltekit/routes` exports the
+framework-free core `<App>`, the service worker and `@xcwds/testing` share: the route
+registry, `setupApp`, `routeOf`, `askGuards`, `decide` and `workerPath`.

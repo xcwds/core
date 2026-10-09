@@ -26,7 +26,7 @@ export type SharedStorage = {
 	readonly backing: StorageAdapter;
 	/** An adapter for one tab; its writes reach every other connected tab as events. */
 	connect(tab: EventTarget): StorageAdapter & { disconnect(): void };
-	/** Clears everything, like another tab calling `localStorage.clear()` (key `null`). */
+	/** Clears everything, like another tab calling `localStorage.clear()` (key `null`, if anything was saved). */
 	clear(): void;
 	/** Resolves once every queued `storage` event has been delivered. */
 	settled(): Promise<void>;
@@ -74,7 +74,10 @@ export function sharedStorage(backing: StorageAdapter = memoryStorage()): Shared
 			};
 		},
 		clear() {
-			for (const key of backing.keys()) backing.remove(key);
+			const keys = backing.keys();
+			// Like localStorage.clear(), clearing an empty store changes nothing: no event.
+			if (keys.length === 0) return;
+			for (const key of keys) backing.remove(key);
 			notify(null, null, null, null);
 		},
 		async settled() {

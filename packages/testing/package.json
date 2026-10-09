@@ -48,9 +48,6 @@
 	"peerDependenciesMeta": {
 		"@playwright/test": {
 			"optional": true
-		},
-		"vitest": {
-			"optional": true
 		}
 	},
 	"keywords": [

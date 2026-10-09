@@ -7,7 +7,7 @@ import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
 import type { App, Route } from '@xcwds/core';
 import { getContext, onMount, setContext } from 'svelte';
 import { data } from 'virtual:xcwds/client';
-import { normalizePath, stripBase } from './routes.js';
+import { askGuards, decide, normalizePath, routeOf, type GuardDecision } from './routes.js';
 import { appLoaded, getApp, loadApp } from './runtime.svelte.js';
 import { settings } from './settings.svelte.js';
 
@@ -31,8 +31,7 @@ export function useApp(): App {
 
 /** The route hooks see: a path without the base path, or null outside the app. */
 function route(url: URL): Route | null {
-	const path = stripBase(url.pathname, data.base);
-	return path === null ? null : { path, url };
+	return routeOf(url, data.base);
 }
 
 /** The next `popstate` event, or a moment later if none comes. */
@@ -59,9 +58,6 @@ function sameDocument(a: Location | URL, b: URL): boolean {
 	return a.origin === b.origin && a.pathname === b.pathname && a.search === b.search;
 }
 
-/** Redirects one navigation may go through before it is stopped (a loop between guards). */
-const MAX_REDIRECTS = 5;
-
 /** Sets up the app for `<App>`. Call during component initialisation. */
 export function startApp(): void {
 	const app = getApp();
@@ -79,17 +75,13 @@ export function startApp(): void {
 	 */
 	let next: { href: string; allowed: boolean; redirects: number; replace: boolean } | null = null;
 
-	/** Navigates to a guard's redirect, whose own hooks then run. */
-	function redirect(path: string, from: URL, redirects: number, replaceState = false) {
-		if (redirects >= MAX_REDIRECTS) {
-			void app.reportError(
-				new Error(`onNavigate redirected more than ${MAX_REDIRECTS} times; stopped at ${path}.`)
-			);
-			return;
-		}
-		const url = new URL(data.base + path, from);
+	/** Navigates to a guard's redirect, whose own hooks then run (or reports a loop). */
+	function follow(decision: GuardDecision, replaceState = false) {
+		if (decision.action === 'stop') return void app.reportError(decision.error);
+		if (decision.action !== 'redirect') return;
+		const { url, redirects } = decision;
 		// The whole chain replaces or pushes like its first hop: one entry at most.
-		next = { href: key(url), allowed: false, redirects: redirects + 1, replace: replaceState };
+		next = { href: key(url), allowed: false, redirects, replace: replaceState };
 		// The URL has the base path.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		void goto(url, { replaceState });
@@ -112,7 +104,7 @@ export function startApp(): void {
 		const replace = carried?.replace ?? false;
 		const from = nav.from ? route(nav.from.url) : null;
 		const current = ++token;
-		const result = app.hooks.firstNow('onNavigate', [to, from], { path: to.path });
+		const result = askGuards(app, to, from);
 		const sync = !(result instanceof Promise);
 		// Every hook answered synchronously and lets it go ahead: nothing to do.
 		if (sync && result !== false && typeof result !== 'string') return;
@@ -122,8 +114,10 @@ export function startApp(): void {
 		const delta = nav.type === 'popstate' ? (nav.delta ?? 0) : 0;
 		const reverted = delta ? popstate() : Promise.resolve();
 		void Promise.all([result, reverted]).then(([answer]) => {
-			if (!active || current !== token || answer === false) return;
-			if (typeof answer === 'string') return redirect(answer, target, redirects, replace);
+			if (!active || current !== token) return;
+			const decision = decide(answer, { target, base: data.base, redirects });
+			if (decision.action === 'cancel') return;
+			if (decision.action !== 'allow') return follow(decision, replace);
 			// An async hook held it and allows it: repeat it, marked so it isn't checked again.
 			const marker = { href: key(target), allowed: true, redirects, replace };
 			next = marker;
@@ -166,16 +160,15 @@ export function startApp(): void {
 				// already showing. Either is dropped once the user has navigated elsewhere.
 				const first = route(initial);
 				if (first) {
-					const answer = await loaded.hooks.first('onNavigate', [first, null], {
-						path: first.path
+					const answer = await askGuards(loaded, first, null);
+					const decision = decide(answer, {
+						target: initial,
+						base: data.base,
+						redirects: 0,
+						first: true
 					});
-					if (
-						active &&
-						typeof answer === 'string' &&
-						token === initialToken &&
-						sameDocument(location, initial)
-					)
-						redirect(answer, initial, 0, true);
+					if (active && token === initialToken && sameDocument(location, initial))
+						follow(decision, true);
 				}
 				return loaded;
 			})

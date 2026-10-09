@@ -1,20 +1,12 @@
 import { definePlugin, descriptor, type App } from '@xcwds/core';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildTestApp, type TestApp } from './app.js';
 import { fakeClock } from './clock.js';
 import type { Importer } from './plugins.js';
 import { sharedStorage } from './tabs.js';
 
-const open: TestApp[] = [];
-async function build(...args: Parameters<typeof buildTestApp>) {
-	const app = await buildTestApp(...args);
-	open.push(app);
-	return app;
-}
-afterEach(async () => {
-	for (const app of open.splice(0)) await app.close();
-	vi.useRealTimers();
-});
+// Apps close when their test finishes.
+const build = buildTestApp;
 
 /** A plugin that saves a counter and records other tabs' changes. */
 const counter = definePlugin(
@@ -91,35 +83,54 @@ describe('buildTestApp', () => {
 			{ plugins: [(a) => void a.addHook('afterNavigate', (to) => void urls.push(String(to.url)))] },
 			{ base: '/sub', path: '/a/' }
 		);
-		await app.navigate('b?q=1');
-		expect(urls).toEqual(['http://localhost/sub/a/', 'http://localhost/sub/b?q=1']);
-		expect(app.path).toBe('/b?q=1');
+		await app.navigate('/b/?q=1');
+		// Paths reach hooks as written, trailing slash included, as in the browser.
+		expect(urls).toEqual(['http://localhost/sub/a/', 'http://localhost/sub/b/?q=1']);
+		expect(app.path).toBe('/b/?q=1');
+		await expect(app.navigate('b')).rejects.toThrow(/start it with "\/"/);
 	});
 
 	it('ignores false on the first page and stops redirect loops', async () => {
-		const errors: unknown[] = [];
-		const app = await build(
-			{
-				plugins: [
-					(a) => {
-						a.addHook('onError', (e) => void errors.push(e));
-						a.addHook('onNavigate', (to) => {
-							if (to.path === '/') return false;
-							if (to.path === '/ping') return '/pong';
-							if (to.path === '/pong') return '/ping';
-						});
-					}
-				]
-			},
-			{ logLevel: 'silent' }
-		);
-		expect(app.path).toBe('/');
-		const result = await app.navigate('/ping');
+		const guard = (a: App) =>
+			void a.addHook('onNavigate', (to) => {
+				if (to.path === '/') return false;
+				if (to.path === '/ping') return '/pong';
+				if (to.path === '/pong') return '/ping';
+			});
+		const lenient = await build({ plugins: [guard] }, { strict: false, logLevel: 'silent' });
+		expect(lenient.path).toBe('/');
+		const result = await lenient.navigate('/ping');
 		expect(result).toMatchObject({ path: '/', cancelled: true });
 		expect(result.redirects).toHaveLength(5);
-		expect(errors).toEqual([
+		expect(lenient.errors).toEqual([
 			expect.objectContaining({ message: expect.stringMatching(/more than 5/) })
 		]);
+		// Strict (the default): the reported error fails the navigation.
+		const strict = await build({ plugins: [guard] });
+		await expect(strict.navigate('/ping')).rejects.toThrow(/more than 5/);
+	});
+
+	it('fails on errors hooks report, in strict mode', async () => {
+		const failing = (a: App) => {
+			a.addHook('afterNavigate', (to) => {
+				if (to.path === '/broken') throw new Error('afterNavigate broke');
+			});
+			a.addHook('onStorageChange', () => {
+				throw new Error('sync broke');
+			});
+		};
+		await expect(build({ plugins: [failing] }, { path: '/broken' })).rejects.toThrow(
+			/afterNavigate broke/
+		);
+		const app = await build({ plugins: [failing] });
+		await expect(app.navigate('/broken')).rejects.toThrow(/afterNavigate broke/);
+		expect(app.path).toBe('/broken');
+		await app.navigate('/'); // Only new errors count.
+		const other = await app.openTab();
+		app.storage.write(app.storage.entry('x', { label: 'x', parse: String }), 'v');
+		await expect(app.settle()).rejects.toThrow(/sync broke/);
+		expect(app.errors).toHaveLength(2);
+		await other.close();
 	});
 
 	it('follows a redirect from the first page, after it was shown', async () => {
@@ -136,7 +147,8 @@ describe('buildTestApp', () => {
 			]
 		});
 		expect(app.path).toBe('/home');
-		expect(seen).toEqual(['guard / undefined', 'after /', 'guard /home /', 'after /home']);
+		// As in <App> (examples/minimal's e2e checks the same order in a browser).
+		expect(seen).toEqual(['guard / undefined', 'guard /home /', 'after /', 'after /home']);
 	});
 
 	it('shares storage between tabs, with storage events', async () => {
@@ -213,6 +225,20 @@ describe('buildTestApp', () => {
 		expect(state.rang).toBe(false);
 		await app.clock!.advance(1000);
 		expect(state.rang).toBe(true);
+	});
+
+	it('refuses a second fake clock, and shares one when asked', async () => {
+		const a = await build({ plugins: [] }, { now: 0 });
+		await expect(buildTestApp({ plugins: [] }, { now: 5 })).rejects.toThrow(/Another fake clock/);
+		const b = await build({ plugins: [] }, { now: a.clock });
+		expect(b.clock).toBe(a.clock);
+		await a.close();
+		// Still b's: closing a didn't take the fake timers away.
+		expect(vi.isFakeTimers()).toBe(true);
+		await b.clock!.advance(1000);
+		expect(Date.now()).toBe(1000);
+		await b.close();
+		expect(vi.isFakeTimers()).toBe(false);
 	});
 
 	it('restores the clock when booting fails', async () => {
@@ -296,5 +322,16 @@ describe('buildTestApp', () => {
 				}
 			)
 		).rejects.toThrow(/import: \(id\) => import\(id\)/);
+	});
+
+	describe('when a test forgets to close it', () => {
+		it('opens an app on a fake clock and leaves it open', async () => {
+			await buildTestApp({ plugins: [] }, { now: 0 });
+			expect(vi.isFakeTimers()).toBe(true);
+		});
+
+		it('was closed when that test finished', () => {
+			expect(vi.isFakeTimers()).toBe(false);
+		});
 	});
 });

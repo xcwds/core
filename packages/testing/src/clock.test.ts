@@ -58,6 +58,35 @@ describe('fakeClock', () => {
 		clock.uninstall();
 	});
 
+	it('owns the fake timers: a second clock or the test faking them is refused', () => {
+		const a = fakeClock();
+		const b = fakeClock(0);
+		a.install();
+		expect(() => b.install()).toThrow(/Another fake clock/);
+		a.install(); // Shared: one more uninstall to go.
+		a.uninstall();
+		expect(vi.isFakeTimers()).toBe(true);
+		a.uninstall();
+		expect(vi.isFakeTimers()).toBe(false);
+		vi.useFakeTimers();
+		expect(() => b.install()).toThrow(/already faked timers/);
+		vi.useRealTimers();
+	});
+
+	it('notices when the test put real timers back under it', () => {
+		const clock = fakeClock();
+		clock.install();
+		vi.useRealTimers();
+		expect(() => clock.jump(1)).toThrow(/replaced or removed/);
+		clock.uninstall();
+		expect(clock.installed).toBe(false);
+		expect(vi.isFakeTimers()).toBe(false);
+		// Free for the next clock.
+		const next = fakeClock();
+		next.install();
+		next.uninstall();
+	});
+
 	it('keeps its time across reinstalls', async () => {
 		const clock = fakeClock(0);
 		clock.install();

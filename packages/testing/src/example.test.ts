@@ -14,10 +14,18 @@ describe('examples/plugin-hello', () => {
 		// Its onBoot hook marks the page.
 		const dataset: Record<string, string> = {};
 		vi.stubGlobal('document', { documentElement: { dataset } });
+		vi.stubGlobal('xcwdsHooks', []);
 		const app = await buildTestApp(config, { import: importer, path: '/moved' });
 		try {
 			expect(app.routes.get('/hello')).toMatchObject({ title: 'Hello', parent: '/' });
 			expect(app.path).toBe('/hello');
+			// The order examples/minimal's e2e test sees in a browser.
+			expect((globalThis as { xcwdsHooks?: string[] }).xcwdsHooks).toEqual([
+				'guard /moved -',
+				'guard /hello /moved',
+				'after /moved',
+				'after /hello'
+			]);
 			expect(dataset).toEqual({ hello: 'hi', path: '/hello' });
 			expect(app.settings.get().greeting).toBe('hi');
 			expect(await app.navigate('/blocked')).toMatchObject({ path: '/hello', cancelled: true });

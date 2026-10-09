@@ -4,8 +4,21 @@
  * Plugins add their pages with `app.route()` from their build entry, so the paths are known when
  * `svelte.config.js` loads and can be fed to prerender `entries`; the page bundle gets the same
  * list. Paths never include the base path (RFC 0001, decision 9).
+ *
+ * Also the framework-free core the page, the service worker and @xcwds/testing share, so they
+ * can't drift apart: how an app is set up, which route a URL is, what guards' answers mean, and
+ * which requests the worker handles.
  */
-import { XcwdsError, codes, type App } from '@xcwds/core';
+import {
+	XcwdsError,
+	codes,
+	createApp,
+	type App,
+	type LogLevel,
+	type Plugin,
+	type Route,
+	type StorageAdapter
+} from '@xcwds/core';
 
 export type RouteWidth = 'narrow' | 'wide';
 
@@ -122,4 +135,89 @@ export function decorateRoutes(app: App, initial: readonly RouteInfo[] = []): Ro
 	});
 	app.decorate('routes', { get: registry.get, list: registry.list });
 	return app.routes;
+}
+
+export type AppSetup = {
+	/** `brand.name`. */
+	name: string;
+	storagePrefix: string | undefined;
+	routes: readonly RouteInfo[];
+	/** Each plugin's entry with its options from the config. */
+	plugins: readonly (readonly [Plugin<never>, Record<string, unknown>])[];
+	/** Defaults to `localStorage` (in a browser). */
+	storage?: StorageAdapter;
+	logLevel?: LogLevel;
+};
+
+/** Creates the app a page or a service worker runs: routes decorated, every plugin registered. */
+export function setupApp(setup: AppSetup): App {
+	const app = createApp({
+		storage: setup.storage,
+		storagePrefix: setup.storagePrefix,
+		appName: setup.name,
+		logLevel: setup.logLevel
+	});
+	decorateRoutes(app, setup.routes);
+	for (const [plugin, options] of setup.plugins) app.register(plugin, { ...options } as never);
+	return app;
+}
+
+/** The route hooks see for a URL: its path without the base path (as written), or null outside the app. */
+export function routeOf(url: URL, base: string): (Route & { url: URL }) | null {
+	const path = stripBase(url.pathname, base);
+	return path === null ? null : { path, url };
+}
+
+/** Redirects one navigation may go through before it is stopped (a loop between guards). */
+export const MAX_REDIRECTS = 5;
+
+/** Runs the `onNavigate` guards for a hop: synchronously when every hook answers synchronously. */
+export function askGuards(app: App, to: Route, from: Route | null): unknown {
+	return app.hooks.firstNow('onNavigate', [to, from], { path: to.path });
+}
+
+/** What happens after the guards answered for one hop. */
+export type GuardDecision =
+	| { action: 'allow' }
+	| { action: 'cancel' }
+	/** `redirects` counts the hops made, this one included. */
+	| { action: 'redirect'; url: URL; redirects: number }
+	/** Too many redirects in a row: the navigation stops and `error` goes to `onError`. */
+	| { action: 'stop'; error: Error };
+
+/**
+ * Turns the guards' answer for a navigation to `target` into what happens next: `false`
+ * cancels (except on the first page, which was loaded rather than navigated to and is already
+ * showing), a path (without the base) redirects, anything else allows it. `redirects` counts
+ * the hops that led here.
+ */
+export function decide(
+	answer: unknown,
+	{
+		target,
+		base,
+		redirects,
+		first = false
+	}: { target: URL; base: string; redirects: number; first?: boolean }
+): GuardDecision {
+	if (answer === false) return first ? { action: 'allow' } : { action: 'cancel' };
+	if (typeof answer !== 'string') return { action: 'allow' };
+	if (redirects >= MAX_REDIRECTS)
+		return {
+			action: 'stop',
+			error: new Error(
+				`onNavigate redirected more than ${MAX_REDIRECTS} times; stopped at ${answer}.`
+			)
+		};
+	return { action: 'redirect', url: new URL(base + answer, target), redirects: redirects + 1 };
+}
+
+/**
+ * The app path of a request the service worker handles (GETs on its origin, under the base
+ * path), or null for one it leaves to the browser.
+ */
+export function workerPath(request: Request, origin: string, base: string): string | null {
+	const url = new URL(request.url);
+	if (request.method !== 'GET' || url.origin !== origin) return null;
+	return stripBase(url.pathname, base);
 }

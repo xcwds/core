@@ -3,9 +3,9 @@
  * from the plugins' `./client` entries that the Vite plugin lists in `virtual:xcwds/client`.
  */
 import { browser } from '$app/environment';
-import { createApp, memoryStorage, type App } from '@xcwds/core';
+import { memoryStorage, type App } from '@xcwds/core';
 import { data, plugins } from 'virtual:xcwds/client';
-import { decorateRoutes } from './routes.js';
+import { setupApp } from './routes.js';
 
 type Runtime = { app: App; loading: Promise<App> | null };
 
@@ -18,15 +18,15 @@ let loaded = $state(false);
  */
 export function getApp(): App {
 	if (!runtime) {
-		const app = createApp({
+		const app = setupApp({
+			name: data.name,
+			storagePrefix: data.storagePrefix,
+			routes: data.routes,
+			plugins,
 			// Prerendering has no storage: pages render with defaults, and the browser loads the
 			// saved values after mount so hydration matches.
-			storage: browser ? undefined : memoryStorage(),
-			storagePrefix: data.storagePrefix,
-			appName: data.name
+			storage: browser ? undefined : memoryStorage()
 		});
-		decorateRoutes(app, data.routes);
-		for (const [plugin, options] of plugins) app.register(plugin, { ...options } as never);
 		runtime = { app, loading: null };
 	}
 	return runtime.app;

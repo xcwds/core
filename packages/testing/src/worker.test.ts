@@ -1,6 +1,6 @@
 import { definePlugin, descriptor, type App } from '@xcwds/core';
 import { describe, expect, it } from 'vitest';
-import { buildTestWorker, MemoryCache } from './worker.js';
+import { buildTestWorker, MemoryCache, MemoryCacheStorage } from './worker.js';
 
 describe('buildTestWorker', () => {
 	it('runs onFetch hooks within their prefix, under the base path', async () => {
@@ -79,7 +79,110 @@ describe('buildTestWorker', () => {
 	});
 });
 
+describe('buildTestWorker globals and errors', () => {
+	it('gives hooks in-memory caches and a fake network, and puts the real ones back', async () => {
+		const realFetch = globalThis.fetch;
+		const hadCaches = 'caches' in globalThis;
+		const worker = await buildTestWorker(
+			{
+				plugins: [
+					(app) =>
+						void app.addHook('onFetch', async (request) => {
+							const cache = await caches.open('runtime');
+							const cached = await cache.match(request);
+							if (cached) return cached;
+							const response = await fetch(request);
+							await cache.put(request, response.clone());
+							return response;
+						})
+				]
+			},
+			{ network: (request) => new Response(`net ${new URL(request.url).pathname}`) }
+		);
+		expect(globalThis.caches).toBe(worker.caches as unknown);
+		expect(await (await worker.fetch('/a'))?.text()).toBe('net /a');
+		expect(await (await worker.caches.match('/a', { cacheName: 'runtime' }))?.text()).toBe(
+			'net /a'
+		);
+		expect(await (await fetch('/b')).text()).toBe('net /b');
+		await expect(buildTestWorker({ plugins: [] })).rejects.toThrow(/Another test worker/);
+		await worker.close();
+		expect(globalThis.fetch).toBe(realFetch);
+		expect('caches' in globalThis).toBe(hadCaches);
+	});
+
+	it('fails operations on errors hooks report, unless not strict', async () => {
+		const failing = (app: App) => {
+			app.addHook('onFetch', () => {
+				throw new Error('fetch broke');
+			});
+			app.addHook('onInstall', () => fetch('/offline').then(() => undefined));
+		};
+		const strict = await buildTestWorker({ plugins: [failing] });
+		await expect(strict.fetch('/')).rejects.toThrow(/fetch broke/);
+		// No network by default: the hook's fetch fails as offline.
+		await expect(strict.install()).rejects.toThrow(/No network in tests/);
+		await strict.close();
+
+		const lenient = await buildTestWorker(
+			{ plugins: [failing] },
+			{ strict: false, logLevel: 'silent' }
+		);
+		expect(await lenient.fetch('/')).toBeUndefined();
+		expect(lenient.errors).toEqual([
+			expect.objectContaining({ message: expect.stringMatching(/fetch broke/) })
+		]);
+		await lenient.close();
+	});
+});
+
 describe('MemoryCache', () => {
+	it('checks what it stores like the Cache API', async () => {
+		let calls = 0;
+		const cache = new MemoryCache('http://localhost', (request) => {
+			calls++;
+			return new URL(request.url).pathname === '/bad'
+				? new Response('', { status: 500 })
+				: new Response('ok');
+		});
+		await expect(cache.addAll(['/a', 'http://localhost/a'])).rejects.toMatchObject({
+			name: 'InvalidStateError'
+		});
+		expect(calls).toBe(0);
+		// All or nothing.
+		await expect(cache.addAll(['/a', '/bad'])).rejects.toThrow(/500/);
+		expect(await cache.keys()).toEqual([]);
+		await expect(
+			cache.put(new Request('http://localhost/p', { method: 'POST' }), new Response('x'))
+		).rejects.toThrow(/GET/);
+		await expect(cache.put('/partial', new Response('x', { status: 206 }))).rejects.toThrow(
+			/partial/
+		);
+		await expect(
+			cache.put('/vary', new Response('x', { headers: { vary: 'Accept, *' } }))
+		).rejects.toThrow(/Vary/);
+		await cache.put('/ok', new Response('ok'));
+		expect(
+			await cache.match(new Request('http://localhost/ok', { method: 'POST' }))
+		).toBeUndefined();
+		expect(
+			await cache.match(new Request('http://localhost/ok', { method: 'POST' }), {
+				ignoreMethod: true
+			})
+		).toBeDefined();
+	});
+
+	it('keeps named caches in a CacheStorage', async () => {
+		const storage = new MemoryCacheStorage('http://localhost');
+		expect(await storage.has('v1')).toBe(false);
+		await (await storage.open('v1')).put('/x', new Response('x'));
+		expect(await storage.keys()).toEqual(['v1']);
+		expect(await (await storage.match('/x'))?.text()).toBe('x');
+		expect(await storage.match('/x', { cacheName: 'v2' })).toBeUndefined();
+		expect(await storage.delete('v1')).toBe(true);
+		expect(await storage.match('/x')).toBeUndefined();
+	});
+
 	it('stores clones and deletes', async () => {
 		const cache = new MemoryCache('http://localhost');
 		await cache.put('/x', new Response('x'));
@@ -87,6 +190,6 @@ describe('MemoryCache', () => {
 		expect(await (await cache.match('/x'))?.text()).toBe('x');
 		expect(await cache.delete('/x')).toBe(true);
 		expect(await cache.match('/x')).toBeUndefined();
-		await expect(cache.add('/nothing')).rejects.toThrow(/404/);
+		await expect(cache.add('/nothing')).rejects.toThrow(/No network in tests/);
 	});
 });

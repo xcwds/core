@@ -8,7 +8,10 @@ import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
-import { serveStatic, type StaticServer } from './static-server.js';
+import { checkBase, serveStatic, type StaticServer } from './static-server.js';
+
+const attribute = (value: string) =>
+	value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 export type Deployment = StaticServer & {
 	/** The copy being served. */
@@ -27,19 +30,25 @@ export async function serveDeployment(
 	buildDir: string,
 	{ base = '', appDir = '_app' }: { base?: string; appDir?: string } = {}
 ): Promise<Deployment> {
+	checkBase(base);
 	const dir = await mkdtemp(join(tmpdir(), 'xcwds-deploy-'));
-	await cp(buildDir, dir, { recursive: true });
 	const versionFile = join(dir, appDir, 'version.json');
 	let version: string;
+	let server: StaticServer;
 	try {
-		version = (JSON.parse(await readFile(versionFile, 'utf8')) as { version: string }).version;
-	} catch (cause) {
+		await cp(buildDir, dir, { recursive: true });
+		try {
+			version = (JSON.parse(await readFile(versionFile, 'utf8')) as { version: string }).version;
+		} catch (cause) {
+			throw new Error(`${buildDir} has no ${appDir}/version.json: is it a SvelteKit build?`, {
+				cause
+			});
+		}
+		server = await serveStatic(dir, { base });
+	} catch (error) {
 		await rm(dir, { recursive: true, force: true });
-		throw new Error(`${buildDir} has no ${appDir}/version.json: is it a SvelteKit build?`, {
-			cause
-		});
+		throw error;
 	}
-	const server = await serveStatic(dir, { base });
 	let deploys = 0;
 
 	return {
@@ -55,7 +64,10 @@ export async function serveDeployment(
 				const html = (await readFile(path, 'utf8')).replace(META, '');
 				await writeFile(
 					path,
-					html.replace('</head>', () => `<meta name="test-version" content="${marker}"></head>`)
+					html.replace(
+						'</head>',
+						() => `<meta name="test-version" content="${attribute(marker)}"></head>`
+					)
 				);
 			}
 			// A new build version names the new worker's cache, so it doesn't install into the old
@@ -65,7 +77,10 @@ export async function serveDeployment(
 			const source = await readFile(worker, 'utf8').catch(() => {
 				throw new Error('The build has no service-worker.js.');
 			});
-			await writeFile(worker, `${source.replaceAll(version, next)}\n// ${marker}\n`);
+			await writeFile(
+				worker,
+				`${source.replaceAll(version, next)}\n// ${marker.replace(/[\r\n\u2028\u2029]/g, ' ')}\n`
+			);
 			await writeFile(versionFile, JSON.stringify({ version: next }));
 			version = next;
 			return next;

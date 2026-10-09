@@ -9,6 +9,11 @@ it starts.
 pnpm add -D @xcwds/testing vitest @playwright/test
 ```
 
+The main entry needs Vitest; `@xcwds/testing/playwright` needs only Playwright. The kit shares
+`<App>`'s and the worker's setup and navigation rules through `@xcwds/sveltekit/routes`, so
+installing it also brings `@xcwds/sveltekit`, whose peers (`@sveltejs/kit`, `svelte`, `vite`) a
+plugin package without pages may warn about; they aren't loaded in unit tests.
+
 ## Unit tests
 
 ```ts
@@ -23,12 +28,15 @@ await app.navigate('/utils/timer'); // onNavigate guards, redirects, afterNaviga
 app.clock!.jump(5 * 60_000); // the phone slept for 5 minutes
 await app.clock!.advance(1000); // the next tick sees the timer has ended
 const other = await app.openTab(); // same storage: each gets the other's storage events
-await app.close(); // closes every tab and restores the real clock
+await app.close(); // closes every tab and restores the real clock (also done when the test ends)
 ```
 
-**`buildTestApp(input, options)`** boots the app as `<App>` does: plugins load, then `onBoot`,
-`onReady`, the first page's `onNavigate` guards (`false` can't take the first page back; a
-redirect is a navigation of its own) and `afterNavigate`. Close it when the test ends.
+**`buildTestApp(input, options)`** boots the app as `<App>` does, with the same setup and
+navigation rules: plugins load, then `onBoot`, `onReady`, the first page's `onNavigate` guards
+(`false` can't take the first page back; a redirect is a navigation of its own, whose guards
+answer before the first page's `afterNavigate`) and `afterNavigate`. Built inside a test, it
+closes when the test finishes (Vitest's `onTestFinished`); built elsewhere (e.g. `beforeAll`),
+close it yourself.
 
 - `input` is a whole `xcwds.config` (validated; its name and storage prefix apply) or
   `{ plugins }`, where a plugin is a plugin function, a `[plugin, options]` pair, or a descriptor
@@ -37,23 +45,35 @@ redirect is a navigation of its own) and `afterNavigate`. Close it when the test
 - `storage`: a `memoryStorage()` (the default), any adapter, or a `sharedStorage()` you keep to
   look at.
 - `now`: a start time (or a `fakeClock()`) to fake `Date`, `performance` and timers until the app
-  closes. `advance(ms)` runs the timers due on the way; `jump(ms)` moves the wall clock without
-  them, as when a phone sleeps, so you can check that timers count against end times.
+  closes. `advance(ms)` runs the timers due on the way; `jump(ms)` moves the wall clock (not
+  `performance.now()`) without them, as when a phone sleeps, so you can check that timers count
+  against end times. Vitest's fake timers are global, so one clock owns them at a time: a
+  second app with its own `now`, or `now` in a test that called `vi.useFakeTimers()` itself,
+  throws. Apps that should share a clock pass it on (`now: app.clock`).
 - `base`: SvelteKit's `paths.base`, for the URLs hooks see. `path`: the first page (`/`).
 - `import`: pass `(id) => import(id)` so plugin packages resolve from your test file (pnpm only
   lets a package import its own dependencies). Vitest then transforms them as it does your code.
+- `strict` (default `true`): an error reported to `onError` (a failing hook, a redirect loop)
+  makes the next operation reject with it: booting, `navigate`, `settle`, `close`. With
+  `strict: false` errors are logged and collected in `app.errors`.
 
-The app is the kernel's, plus `navigate(path)` (resolves to `{ path, redirects, cancelled }`;
-paths never include the base), `path`, `clock`, `shared`, `openTab()`, `settle()` (waits for
-other tabs' `storage` events, which arrive asynchronously as in a browser) and `close()`.
+The app is the kernel's, plus `navigate(path)` (an app path starting with `/`, without the
+base; resolves to `{ path, redirects, cancelled }`), `path` (as navigated to, so a trailing
+slash reaches hooks as in the browser), `clock`, `shared`, `errors`, `openTab()`, `settle()`
+(waits for other tabs' `storage` events, which arrive asynchronously as in a browser) and
+`close()`.
 
 Decorators reach the test app only from plugins with `encapsulate: false`, as in the page.
 
-**`buildTestWorker(input, options)`** registers each plugin's `./worker` entry and returns
-`fetch(request | path, init)`, which runs `onFetch` hooks within their prefixes the way the
-service worker does (GETs on the app's origin, under the base path) and resolves to the hook's
-response or `undefined`, plus `install()` (`onInstall` with an in-memory `cache`; `network`
-answers its `add()`), `activate()`, `message(data)` and `close()`. The integration's default
+**`buildTestWorker(input, options)`** sets up each plugin's `./worker` entry as the service
+worker does and returns `fetch(request | path, init)`, which runs `onFetch` hooks within their
+prefixes for the requests the worker handles (GETs on the app's origin, under the base path)
+and resolves to the hook's response or `undefined`, plus `install()` (`onInstall` with
+`cache`), `activate()`, `message(data)`, `errors` and `close()`. It is strict like
+`buildTestApp`, and closes when the test finishes. While it is open, `globalThis.caches` is its
+in-memory `caches` (a `MemoryCacheStorage`, with the Cache API's checks) and `fetch()` is
+answered by the `network` option (by default every request fails, as offline), so hooks run as
+they would in the worker; one test worker can be open at a time. The integration's default
 precaching strategy isn't part of it.
 
 ## End-to-end tests

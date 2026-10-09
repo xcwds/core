@@ -15,6 +15,7 @@ beforeAll(async () => {
 	await writeFile(join(dir, 'docs', 'index.html'), 'docs');
 	await writeFile(join(dir, '404.html'), 'not found');
 	await writeFile(join(dir, 'app.js'), 'js');
+	await writeFile(join(dir, 'app.wasm'), 'wasm');
 	// Beside the build: must never be served.
 	await writeFile(join(root, 'build.html'), 'secret');
 	await writeFile(join(root, 'secret.txt'), 'secret');
@@ -33,6 +34,7 @@ describe('serveStatic', () => {
 		expect(await get(server.url('/hello'))).toEqual([200, 'hello', 'text/html']);
 		expect(await get(server.url('docs/'))).toEqual([200, 'docs', 'text/html']);
 		expect(await get(server.url('/app.js'))).toEqual([200, 'js', 'text/javascript']);
+		expect(await get(server.url('/app.wasm'))).toEqual([200, 'wasm', 'application/wasm']);
 		expect(await get(server.url('/nope'))).toEqual([404, 'not found', 'text/html']);
 		await server.close();
 	});

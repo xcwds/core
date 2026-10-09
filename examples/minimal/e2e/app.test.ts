@@ -161,6 +161,15 @@ for (const { name, dir, base } of targets) {
 				await at(page, '/hello', 2);
 			});
 
+			test("run the first page's hooks in order", async ({ page }) => {
+				// The redirect's guard answers at once, before the first page's afterNavigate.
+				await page.goto(url('/moved'));
+				await at(page, '/hello', 2);
+				expect(
+					await page.evaluate(() => (globalThis as { xcwdsHooks?: string[] }).xcwdsHooks)
+				).toEqual(['guard /moved -', 'guard /hello /moved', 'after /moved', 'after /hello']);
+			});
+
 			test("drop the first page's redirect once the user has moved on", async ({ page }) => {
 				// The guard for /hello?bounce redirects after 1.5 s; the user leaves well before that.
 				await page.goto(url('/hello?bounce'));

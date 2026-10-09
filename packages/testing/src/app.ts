@@ -1,18 +1,23 @@
 /**
  * `buildTestApp()`: the page's app without a browser, like Fastify's `inject()` for a server.
- * Plugins load and boot as in `<App>` (load, `onBoot`, `onReady`, the first page's guards and
- * `afterNavigate`), with in-memory storage shared by simulated tabs and an optional fake clock.
+ * Plugins load and boot as in `<App>`, with the same setup, routes and guard rules
+ * (`@xcwds/sveltekit/routes`), on in-memory storage shared by simulated tabs and an optional
+ * fake clock.
  */
-import { createApp, type App, type LogLevel, type Route, type StorageAdapter } from '@xcwds/core';
-import { decorateRoutes, normalizePath, stripBase } from '@xcwds/sveltekit/routes';
+import type { App, LogLevel, Route, StorageAdapter } from '@xcwds/core';
+import { askGuards, decide, routeOf, setupApp } from '@xcwds/sveltekit/routes';
 import { fakeClock, type FakeClock } from './clock.js';
+import { closeAfterTest, ErrorTrap } from './errors.js';
 import { prepare, type Importer, type Prepared, type TestInput } from './plugins.js';
 import { isSharedStorage, sharedStorage, type SharedStorage } from './tabs.js';
 
 export type TestAppOptions = {
 	/** The storage behind every tab: a plain adapter (e.g. `memoryStorage()`) or `sharedStorage()`. */
 	storage?: StorageAdapter | SharedStorage;
-	/** A fake clock (or its start time), installed until the app closes. Omit for real time. */
+	/**
+	 * A start time for a fake clock, installed until the app closes, or a clock to share
+	 * (`now: other.clock`). Omit for real time.
+	 */
 	now?: FakeClock | number | Date;
 	/** SvelteKit's `paths.base`, for the URLs hooks see. Paths you pass never include it. */
 	base?: string;
@@ -20,6 +25,11 @@ export type TestAppOptions = {
 	path?: string;
 	/** Imports plugin entries for descriptors; see `Importer`. */
 	import?: Importer;
+	/**
+	 * Errors reported to `onError` make the next operation (boot, `navigate`, `settle`, `close`)
+	 * reject. `false` only logs them, and collects them in `errors`. Defaults to `true`.
+	 */
+	strict?: boolean;
 	logLevel?: LogLevel;
 };
 
@@ -32,13 +42,18 @@ export type NavigationResult = {
 };
 
 export type TestHelpers = {
-	/** Navigates like a link click: `onNavigate` guards, redirects, then `afterNavigate`. */
+	/**
+	 * Navigates like a link click to an app path (starting with `/`, without the base):
+	 * `onNavigate` guards, redirects, then `afterNavigate`.
+	 */
 	navigate(path: string): Promise<NavigationResult>;
-	/** The current path (with any query), without the base path. */
+	/** The current path (as navigated to, with any query), without the base path. */
 	readonly path: string;
 	readonly clock: FakeClock | undefined;
 	/** The storage all tabs share. */
 	readonly shared: SharedStorage;
+	/** Every error reported to `onError` in any tab, in order. */
+	readonly errors: readonly unknown[];
 	/** Opens another tab of the same app on the same storage (and clock). */
 	openTab(options?: { path?: string }): Promise<TestApp>;
 	/** Waits until other tabs' `storage` events have arrived. */
@@ -50,7 +65,6 @@ export type TestHelpers = {
 export type TestApp = App & TestHelpers;
 
 const ORIGIN = 'http://localhost';
-const MAX_REDIRECTS = 5;
 
 type Group = {
 	prepared: Prepared;
@@ -58,6 +72,7 @@ type Group = {
 	clock: FakeClock | undefined;
 	base: string;
 	logLevel: LogLevel;
+	trap: ErrorTrap;
 	tabs: Set<TestApp>;
 	/** Set once the first tab has closed (taking the others and the clock with it). */
 	closed: boolean;
@@ -65,80 +80,98 @@ type Group = {
 
 async function openTab(group: Group, initial: string): Promise<TestApp> {
 	if (group.closed) throw new Error('This test app was closed; build a new one.');
-	const { prepared, base } = group;
+	const { prepared, base, trap } = group;
 	const tab = new EventTarget();
 	const adapter = group.shared.connect(tab);
-	const app = createApp({
-		storage: adapter,
+	const app = setupApp({
+		name: prepared.name,
 		storagePrefix: prepared.storagePrefix,
-		appName: prepared.name,
+		routes: prepared.routes,
+		plugins: prepared.plugins,
+		storage: adapter,
 		logLevel: group.logLevel
 	});
-	decorateRoutes(app, prepared.routes);
-	for (const [plugin, options] of prepared.plugins) app.register(plugin, { ...options } as never);
+	trap.watch(app);
 
-	const route = (path: string): Route & { url: URL } => {
-		const url = new URL(base + (path.startsWith('/') ? path : `/${path}`), ORIGIN);
-		return { path: normalizePath(stripBase(url.pathname, base) ?? url.pathname), url };
+	const urlOf = (path: string) => {
+		if (!path.startsWith('/'))
+			throw new TypeError(`"${path}" is not an app path (start it with "/").`);
+		return new URL(base + path, ORIGIN);
 	};
-	const key = (to: Route & { url: URL }) => to.path + to.url.search;
-	let current = key(route(initial));
+	// Every URL here is under the base path.
+	const route = (url: URL) => routeOf(url, base)!;
+	let current = route(urlOf(initial));
+	const show = (to: Route) => to.path + (to.url?.search ?? '');
 
-	/** A navigation and the redirects its guards make (`redirects` holds those made already). */
-	async function go(path: string, redirects: string[]): Promise<NavigationResult> {
-		let target = path;
+	/**
+	 * One navigation, through each redirect its guards make, as the shell does it. `redirects`
+	 * counts the hops already made; `afterFirstHop` runs once the first hop's guards answered.
+	 */
+	async function go(
+		target: URL,
+		redirects: string[],
+		afterFirstHop?: () => Promise<void>
+	): Promise<NavigationResult> {
 		for (;;) {
 			const to = route(target);
-			const answer = await app.hooks.first('onNavigate', [to, route(current)], { path: to.path });
-			if (answer === false) return { path: current, redirects, cancelled: true };
-			if (typeof answer !== 'string') break;
-			if (redirects.length >= MAX_REDIRECTS) {
-				await app.reportError(
-					new Error(`onNavigate redirected more than ${MAX_REDIRECTS} times; stopped at ${answer}.`)
-				);
-				return { path: current, redirects, cancelled: true };
+			const answer = await askGuards(app, to, current);
+			await afterFirstHop?.();
+			afterFirstHop = undefined;
+			const decision = decide(answer, { target, base, redirects: redirects.length });
+			if (decision.action === 'cancel') return { path: show(current), redirects, cancelled: true };
+			if (decision.action === 'stop') {
+				await app.reportError(decision.error);
+				return { path: show(current), redirects, cancelled: true };
 			}
-			redirects.push(answer);
-			target = answer;
+			if (decision.action === 'allow') break;
+			redirects.push(show(route(decision.url)));
+			target = decision.url;
 		}
-		const to = route(target);
-		current = key(to);
-		await app.hooks.run('afterNavigate', [to], { path: to.path });
-		return { path: current, redirects, cancelled: false };
+		current = route(target);
+		await app.hooks.run('afterNavigate', [current], { path: current.path });
+		return { path: show(current), redirects, cancelled: false };
 	}
 
 	/**
 	 * The first page was loaded, not navigated to: its guards run once the app is ready, and
-	 * `false` can't take it back; a redirect is a navigation of its own.
+	 * `false` can't take it back. As in `<App>`, a redirect's own guards answer before the first
+	 * page's `afterNavigate`, and the redirected page's `afterNavigate` comes last.
 	 */
 	async function enter() {
-		const first = route(initial);
-		const answer = await app.hooks.first('onNavigate', [first, null], { path: first.path });
-		await app.hooks.run('afterNavigate', [first], { path: first.path });
-		if (typeof answer === 'string') await go(answer, [answer]);
+		const first = current;
+		const answer = await askGuards(app, first, null);
+		const shown = () => app.hooks.run('afterNavigate', [first], { path: first.path });
+		const decision = decide(answer, { target: first.url, base, redirects: 0, first: true });
+		if (decision.action !== 'redirect') return shown();
+		await go(decision.url, [show(route(decision.url))], shown);
 	}
 
 	const close = app.close.bind(app);
 	let closed = false;
 	const helpers: TestHelpers = {
-		navigate: (path) => go(path, []),
+		navigate: (path) => trap.run(() => go(urlOf(path), [])),
 		get path() {
-			return current;
+			return show(current);
 		},
 		clock: group.clock,
 		shared: group.shared,
+		errors: trap.errors,
 		openTab: (options = {}) => openTab(group, options.path ?? '/'),
-		settle: () => group.shared.settled(),
+		settle: () => trap.run(() => group.shared.settled()),
 		async close() {
 			if (closed) return;
 			closed = true;
 			const first = [...group.tabs][0] === testApp;
 			if (first) group.closed = true;
 			group.tabs.delete(testApp);
-			await close();
-			adapter.disconnect();
-			if (first) for (const other of [...group.tabs]) await other.close();
-			if (group.tabs.size === 0) group.clock?.uninstall();
+			try {
+				await close();
+				adapter.disconnect();
+				if (first) for (const other of [...group.tabs]) await other.close().catch(() => {});
+			} finally {
+				if (first) group.clock?.uninstall();
+			}
+			trap.check();
 		}
 	};
 	const testApp = app as TestApp;
@@ -158,8 +191,9 @@ async function openTab(group: Group, initial: string): Promise<TestApp> {
 		await app.hooks.run('onBoot', []);
 		await app.ready();
 		await enter();
+		trap.check();
 	} catch (error) {
-		await testApp.close();
+		await testApp.close().catch(() => {});
 		throw error;
 	}
 	return testApp;
@@ -168,7 +202,8 @@ async function openTab(group: Group, initial: string): Promise<TestApp> {
 /**
  * Boots an app for a unit test. `input` is a whole config or `{ plugins }`, where a plugin is a
  * function, a `[plugin, options]` pair or a descriptor (loaded from its package's `./client`,
- * with its build entry's routes). Close it when the test ends.
+ * with its build entry's routes). Inside a test it closes when the test finishes; close it
+ * yourself otherwise.
  */
 export async function buildTestApp(
 	input: TestInput,
@@ -188,14 +223,19 @@ export async function buildTestApp(
 		clock,
 		base: options.base ?? '',
 		logLevel,
+		trap: new ErrorTrap(options.strict ?? true),
 		tabs: new Set(),
 		closed: false
 	};
+	// Each app installs its clock once and uninstalls it once, when its first tab closes.
 	clock?.install();
+	let app: TestApp;
 	try {
-		return await openTab(group, options.path ?? '/');
+		app = await openTab(group, options.path ?? '/');
 	} catch (error) {
-		clock?.uninstall();
+		if (group.tabs.size === 0 && !group.closed) clock?.uninstall();
 		throw error;
 	}
+	closeAfterTest(() => app.close());
+	return app;
 }

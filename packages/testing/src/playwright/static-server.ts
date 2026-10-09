@@ -11,7 +11,15 @@ const TYPES: Record<string, string> = {
 	'.webmanifest': 'application/manifest+json',
 	'.png': 'image/png',
 	'.jpg': 'image/jpeg',
+	'.jpeg': 'image/jpeg',
+	'.gif': 'image/gif',
 	'.webp': 'image/webp',
+	'.avif': 'image/avif',
+	'.wasm': 'application/wasm',
+	'.xml': 'application/xml',
+	'.map': 'application/json',
+	'.woff': 'font/woff',
+	'.ttf': 'font/ttf',
 	'.ico': 'image/x-icon',
 	'.svg': 'image/svg+xml',
 	'.txt': 'text/plain',
@@ -39,6 +47,12 @@ async function resolveFile(dir: string, pathname: string): Promise<string | null
 	return null;
 }
 
+/** Throws unless `base` is a base path as SvelteKit takes it (`""` or `/repo`). */
+export function checkBase(base: string): void {
+	if (base !== '' && (!base.startsWith('/') || base.endsWith('/')))
+		throw new Error(`The base path "${base}" must be "" or start with "/" and not end with "/".`);
+}
+
 export type StaticServer = {
 	/** `http://127.0.0.1:<port>`. */
 	origin: string;
@@ -58,8 +72,7 @@ export async function serveStatic(
 	dir: string,
 	{ base = '' }: { base?: string } = {}
 ): Promise<StaticServer> {
-	if (base !== '' && (!base.startsWith('/') || base.endsWith('/')))
-		throw new Error(`The base path "${base}" must be "" or start with "/" and not end with "/".`);
+	checkBase(base);
 	const server = createServer(async (req, res) => {
 		try {
 			const pathname = new URL(req.url ?? '/', 'http://x').pathname;
