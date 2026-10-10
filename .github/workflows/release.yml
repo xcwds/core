@@ -1,0 +1,75 @@
+# Publishes the @xcwds packages to npm with changesets, once CI has passed on main.
+#
+# Each run either opens (or updates) a "Version packages" PR that turns the pending changesets
+# into versions and changelogs, or, after that PR is merged, publishes every package whose
+# version isn't on npm yet. Packages marked "private": true are never published.
+#
+# Off until the npm side is set up (see .changeset/README.md): set the repository variable
+# NPM_RELEASE to true, and either add an NPM_TOKEN secret or register this workflow as the
+# packages' trusted publisher on npmjs.com.
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  # Never cut a publish short; the next run waits.
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      vars.NPM_RELEASE == 'true' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Required reviewers on this environment gate every run: version PR updates and publishes.
+    environment: npm
+    # Job permissions replace the workflow's.
+    permissions:
+      # Push the changeset-release/main branch and the release tags.
+      contents: write
+      # Open the "Version packages" PR.
+      pull-requests: write
+      # Trusted publishing and npm provenance.
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # The commit CI tested.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Open the version PR, or publish to npm
+        uses: changesets/action@v1
+        with:
+          version: pnpm version-packages
+          publish: pnpm release
+          title: Version packages
+          commit: Version packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Empty when the packages use trusted publishing instead.
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true

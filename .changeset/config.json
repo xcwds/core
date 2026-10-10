@@ -7,5 +7,11 @@
 	"access": "public",
 	"baseBranch": "main",
 	"updateInternalDependencies": "patch",
-	"ignore": ["@xcwds/example-minimal", "@xcwds-example/plugin-hello"]
+	"ignore": [
+		"@xcwds/example-minimal",
+		"@xcwds-example/plugin-hello",
+		"xcwds-plugin-tally",
+		"@xcwds/site",
+		"@xcwds-site/plugin-pages"
+	]
 }
