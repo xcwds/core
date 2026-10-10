@@ -22,7 +22,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Job permissions replace the workflow's: checkout still needs to read the repository.
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:

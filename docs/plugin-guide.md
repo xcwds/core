@@ -288,11 +288,14 @@ tabs), and reads the setting from `settings.current`:
 	import { add, type Tally as SavedTally } from './tally.js';
 	import type {} from './client.js';
 
-	const app = useApp();
+	// `app.tally` is optional: say what's missing rather than fail on `undefined`.
+	const plugin = useApp().tally;
+	if (!plugin)
+		throw new Error('xcwds-plugin-tally: add tally() to the plugins in xcwds.config.ts.');
 	let tally = $state<SavedTally | undefined>();
 	// Loads the saved tally after mount, saves every change, and follows other tabs.
 	persist(
-		app.tally!.entry,
+		plugin.entry,
 		() => tally,
 		(v) => (tally = v),
 		{ cleared: () => (tally = undefined) }
@@ -341,6 +344,9 @@ tabs), and reads the setting from `settings.current`:
 	}
 </style>
 ```
+
+It checks for `app.tally` before using it, so an app that has the route file but not `tally()`
+in its config gets an error that says so.
 
 The styles are plain CSS that uses the shell's variables, so the component works without the
 app scanning your package for Tailwind classes. If you'd rather use Tailwind, ship a CSS file

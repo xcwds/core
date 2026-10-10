@@ -4,11 +4,14 @@
 	import { add, type Tally as SavedTally } from './tally.js';
 	import type {} from './client.js';
 
-	const app = useApp();
+	// `app.tally` is optional: say what's missing rather than fail on `undefined`.
+	const plugin = useApp().tally;
+	if (!plugin)
+		throw new Error('xcwds-plugin-tally: add tally() to the plugins in xcwds.config.ts.');
 	let tally = $state<SavedTally | undefined>();
 	// Loads the saved tally after mount, saves every change, and follows other tabs.
 	persist(
-		app.tally!.entry,
+		plugin.entry,
 		() => tally,
 		(v) => (tally = v),
 		{ cleared: () => (tally = undefined) }

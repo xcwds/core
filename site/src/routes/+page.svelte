@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import PageList from '$lib/PageList.svelte';
 	import Home from '@xcwds/plugin-shell/Home.svelte';
 
@@ -55,6 +56,12 @@
 		<pre class="overflow-x-auto rounded-xl bg-(--xcwds-shell-card) px-4 py-3 text-sm"><code
 				>npm create @xcwds my-app</code
 			></pre>
+		<p class="text-sm text-(--xcwds-shell-muted)">
+			Not on npm yet: <a class="underline" href={resolve('/docs/getting-started')}
+				>Getting started</a
+			>
+			shows how to try it from a clone until the first release.
+		</p>
 	</section>
 	<PageList pages={start} />
 </Home>
