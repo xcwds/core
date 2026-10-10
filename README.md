@@ -21,6 +21,7 @@ and the design is [RFC 0001](docs/rfc/0001-architecture.md).
 - `examples/minimal`: the smallest working app, used by the e2e tests
 - `examples/plugin-hello`: a tiny plugin with every kind of entry, used by `examples/minimal`
 - `docs/rfc`: design decisions
+- [`docs/privacy.md`](docs/privacy.md): how the framework keeps apps from phoning home
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to build and test.
 

@@ -8,6 +8,7 @@ import {
 	type Hooks
 } from './hooks.js';
 import { createLogger, type LogLevel, type Logger } from './log.js';
+import { checkNetwork, type NetworkUse } from './privacy.js';
 import { satisfies } from './semver.js';
 import { createSettings, type SettingsRegistry, type SettingsScope } from './settings.js';
 import {
@@ -35,8 +36,12 @@ export type PluginMeta = {
 	 * `false`: they reach the scope it was registered in, like `fastify-plugin`.
 	 */
 	encapsulate?: boolean;
-	/** Network use this plugin needs (#22). `false` means none. */
-	network?: false | { origins: string[]; reason: string };
+	/**
+	 * Network use (#22): `false` (the default) or the `https:`/`wss:` origins it contacts and
+	 * why. Checked when the plugin loads; the build fails on origins no plugin declares, and the
+	 * page's CSP only allows declared ones.
+	 */
+	network?: NetworkUse;
 	/** Storage namespace (`app:<namespace>:<key>`). Defaults to a short form of `name`. */
 	namespace?: string;
 };
@@ -583,6 +588,7 @@ async function loadPlugin(parent: State, { plugin, options }: QueueItem): Promis
 			`Plugin "${name}" needs @xcwds/core ${meta.core}, but this is ${k.version}.`,
 			{ plugin: name }
 		);
+	checkNetwork(meta.network, name);
 	if (named && isRegistered(parent, meta.name!))
 		throw new XcwdsError(codes.PLUGIN_DUPLICATE, `Plugin "${name}" is already registered here.`, {
 			plugin: name

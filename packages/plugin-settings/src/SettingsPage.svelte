@@ -2,7 +2,7 @@
 	/**
 	 * The settings page: every settings field with a `control` (or a component a plugin added for
 	 * it), grouped by section, the sections plugins add (Install, What's new), Your data
-	 * (backups and clearing) and About. Render it from the settings route; `about` adds the app's
+	 * (backups and clearing), Privacy (the servers it contacts, #22) and About. Render it from the settings route; `about` adds the app's
 	 * own lines to About.
 	 */
 	import { version } from '$app/environment';
@@ -12,6 +12,7 @@
 	import type { FieldComponent, PageSection } from './client.js';
 	import DataSection from './DataSection.svelte';
 	import FieldControl from './FieldControl.svelte';
+	import PrivacySection from './PrivacySection.svelte';
 	import { sectionOrder, sectionTitle } from './options.js';
 
 	let { about }: { about?: Snippet } = $props();
@@ -39,16 +40,21 @@
 		return ids.map((id) => ({ id, fields: shown.filter((f) => f.section === id) }));
 	});
 
-	/** Built-ins and plugin sections in one order: fields at 0, Your data 100, About 200. */
+	/**
+	 * Built-ins and plugin sections in one order: fields at 0, Your data 100, Privacy 150,
+	 * About 200.
+	 */
 	type Block =
 		| { kind: 'fields'; order: number }
 		| { kind: 'data'; order: number }
+		| { kind: 'privacy'; order: number }
 		| { kind: 'about'; order: number }
 		| { kind: 'added'; order: number; section: PageSection };
 	const blocks = $derived(
 		[
 			{ kind: 'fields', order: 0 },
 			{ kind: 'data', order: 100 },
+			{ kind: 'privacy', order: 150 },
 			{ kind: 'about', order: 200 },
 			...added.map((section) => ({ kind: 'added', order: section.order, section }) as const)
 		].sort((a, b) => a.order - b.order) as Block[]
@@ -83,6 +89,11 @@
 			<section class={card} aria-labelledby="{uid}-data">
 				<h2 id="{uid}-data" class="text-lg font-semibold">Your data</h2>
 				<DataSection />
+			</section>
+		{:else if block.kind === 'privacy'}
+			<section class={card} aria-labelledby="{uid}-privacy" data-testid="settings-privacy">
+				<h2 id="{uid}-privacy" class="text-lg font-semibold">Privacy</h2>
+				<PrivacySection />
 			</section>
 		{:else if block.kind === 'about'}
 			<section class={card} aria-labelledby="{uid}-about" data-testid="about">

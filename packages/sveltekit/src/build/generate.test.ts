@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -65,10 +65,19 @@ describe('generate', () => {
 			{
 				name: 'xcwds-plugin-timers',
 				options: { x: 1, prefix: '/utils/timer' },
+				dir: realpathSync(join(root, 'node_modules/xcwds-plugin-timers')),
 				client: true,
-				worker: true
+				worker: true,
+				network: false
 			},
-			{ name: 'plain', options: {}, client: false, worker: false }
+			{
+				name: 'plain',
+				options: {},
+				dir: realpathSync(join(root, 'node_modules/plain')),
+				client: false,
+				worker: false,
+				network: false
+			}
 		]);
 		expect(state.routes).toEqual([
 			{ path: '/utils/timer', title: 'Timer', parent: '/', plugin: 'xcwds-plugin-timers' }
@@ -170,6 +179,90 @@ describe('withXcwds', () => {
 		expect(config.kit?.csp?.directives?.['script-src']).toEqual(['self']);
 		expect(config.kit?.csp?.directives?.['upgrade-insecure-requests']).toBe(true);
 		expect(recall(root)?.base).toBe('/sub');
+	});
+
+	it('allows the origins plugins declare and the config lists, and checks the build', async () => {
+		await plugin(
+			'weather',
+			{ '.': './index.js' },
+			`export const build = () => {};
+Object.defineProperty(build, Symbol.for('xcwds.plugin-meta'), {
+	value: { network: { origins: ['https://api.weather.example', 'wss://live.weather.example'], reason: 'Forecasts' } }
+});`
+		);
+		await write(
+			'xcwds.config.js',
+			`export default { brand: { name: 'T' }, privacy: { allowOrigins: ['https://fonts.example'] }, plugins: [{ name: 'weather', options: {} }, { name: 'plain', options: {} }] };`
+		);
+		await rm(join(root, 'xcwds.config.ts'));
+		const config = await withXcwds({}, { root });
+		const directives = config.kit!.csp!.directives!;
+		expect(directives['connect-src']).toEqual([
+			'self',
+			'https://api.weather.example',
+			'wss://live.weather.example',
+			'https://fonts.example'
+		]);
+		// wss: only makes sense for connections; scripts only ever come from the app.
+		expect(directives['font-src']).toEqual([
+			'self',
+			'data:',
+			'https://api.weather.example',
+			'https://fonts.example'
+		]);
+		expect(directives['script-src']).toEqual(['self']);
+		expect(recall(root)?.plugins.map((p) => p.network)).toEqual([
+			{
+				origins: ['https://api.weather.example', 'wss://live.weather.example'],
+				reason: 'Forecasts'
+			},
+			false
+		]);
+		expect(clientModule(recall(root)!)).toContain(
+			'"privacy":{"plugins":[{"name":"weather","network":{"origins":["https://api.weather.example","wss://live.weather.example"],"reason":"Forecasts"}},{"name":"plain","network":false}],"allowOrigins":["https://fonts.example"]}'
+		);
+
+		// The adapter scans SvelteKit's output before writing the site.
+		const out = join(root, '.svelte-kit');
+		let adapted = false;
+		const builder = {
+			getClientDirectory: () => join(out, 'output/client'),
+			getBuildDirectory: (name: string) => join(out, name)
+		};
+		const adapter = (
+			await withXcwds(
+				{ kit: { adapter: { name: 'mine', adapt: () => void (adapted = true) } } },
+				{ root }
+			)
+		).kit!.adapter!;
+		expect(adapter.name).toBe('mine');
+		await write('.svelte-kit/output/client/_app/a.js', 'fetch("https://api.weather.example/x")');
+		await adapter.adapt(builder as never);
+		expect(adapted).toBe(true);
+		adapted = false;
+		await write(
+			'.svelte-kit/output/prerendered/pages/index.html',
+			'<img src="https://pixel.example/p.gif">'
+		);
+		await expect(Promise.resolve().then(() => adapter.adapt(builder as never))).rejects.toThrow(
+			'https://pixel.example, from the app or one of its dependencies'
+		);
+		expect(adapted).toBe(false);
+	});
+
+	it('fails on invalid network metadata, naming the plugin', async () => {
+		await plugin(
+			'leaky',
+			{ '.': './index.js' },
+			`export const build = () => {};
+Object.defineProperty(build, Symbol.for('xcwds.plugin-meta'), { value: { network: { origins: ['http://x.example'], reason: 'r' } } });`
+		);
+		await write(
+			'xcwds.config.js',
+			`export default { brand: { name: 'T' }, plugins: [{ name: 'leaky', options: {} }] };`
+		);
+		await rm(join(root, 'xcwds.config.ts'));
+		await expect(generate({ root })).rejects.toThrow('Plugin "leaky" has invalid `network`');
 	});
 });
 

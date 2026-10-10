@@ -1,0 +1,107 @@
+// "Never phone home" (#22): the app makes no off-origin requests, its CSP blocks URLs built at
+// runtime (on prerendered pages and the 404.html fallback), and Settings says so.
+import { expect, test, type Page } from '@playwright/test';
+import { gotoHydrated, serveStatic, type StaticServer } from '@xcwds/testing/playwright';
+import { fileURLToPath } from 'node:url';
+
+const build = fileURLToPath(new URL('../build', import.meta.url));
+let server: StaticServer;
+const url = (path: string) => server.url(path);
+
+test.beforeAll(async () => {
+	server = await serveStatic(build);
+});
+test.afterAll(() => server.close());
+
+const PAGES = [
+	'/',
+	'/hello',
+	'/utils',
+	'/utils/coffee',
+	'/utils/notes',
+	'/utils/timer',
+	'/utils/dice',
+	'/utils/units',
+	'/utils/journal',
+	'/inbox',
+	'/settings'
+];
+
+test.describe('with the service worker', () => {
+	test.use({ serviceWorkers: 'allow' });
+
+	test('no page makes a request off the app origin', async ({ page, context }) => {
+		const origin = new URL(url('/')).origin;
+		const away: string[] = [];
+		context.on('request', (request) => {
+			const target = new URL(request.url());
+			if (!['data:', 'blob:'].includes(target.protocol) && target.origin !== origin)
+				away.push(request.url());
+		});
+		for (const path of PAGES) {
+			await gotoHydrated(page, url(path));
+			// Give boot hooks and the worker's precache time to run.
+			await page.waitForLoadState('networkidle');
+		}
+		await gotoHydrated(page, url('/no-such-page'));
+		await page.waitForLoadState('networkidle');
+		expect(away).toEqual([]);
+	});
+});
+
+/** Asks the page for a URL built at runtime; resolves to what the CSP did. */
+function tryToPhoneHome(page: Page) {
+	return page.evaluate(async () => {
+		const blocked: string[] = [];
+		document.addEventListener('securitypolicyviolation', (e) =>
+			blocked.push(`${e.effectiveDirective} ${e.blockedURI}`)
+		);
+		// Built at runtime, so no static scan could have seen it.
+		const host = ['example', 'com'].join('.');
+		const fetched = await fetch(`https://${host}/collect?x=1`).then(
+			() => 'sent',
+			() => 'failed'
+		);
+		const image = await new Promise<string>((resolve) => {
+			const img = new Image();
+			img.onload = () => resolve('loaded');
+			img.onerror = () => resolve('failed');
+			img.src = `https://${host}/pixel.gif`;
+		});
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		return { fetched, image, blocked };
+	});
+}
+
+for (const path of ['/', '/no-such-page']) {
+	test(`the CSP blocks a runtime-built URL to an undeclared origin on ${path}`, async ({
+		page
+	}) => {
+		let reached = 0;
+		await page.route('https://example.com/**', (route) => {
+			reached++;
+			return route.fulfill({ status: 200, body: 'ok' });
+		});
+		await gotoHydrated(page, url(path));
+		const result = await tryToPhoneHome(page);
+		expect(result.fetched).toBe('failed');
+		expect(result.image).toBe('failed');
+		expect(result.blocked).toEqual([
+			'connect-src https://example.com/collect?x=1',
+			'img-src https://example.com/pixel.gif'
+		]);
+		expect(reached).toBe(0);
+	});
+}
+
+test('Settings says the app contacts no servers, and lists every plugin', async ({ page }) => {
+	await gotoHydrated(page, url('/settings'));
+	const privacy = page.getByTestId('settings-privacy');
+	await expect(privacy.getByRole('heading', { name: 'Privacy' })).toBeVisible();
+	await expect(privacy).toContainText('Minimal never contacts a server.');
+	await privacy.getByText('Plugins (11)').click();
+	await expect(privacy.getByRole('listitem')).toHaveCount(11);
+	await expect(privacy.getByRole('listitem').first()).toHaveText(
+		/@xcwds\/plugin-shell\s*No network/
+	);
+});

@@ -40,7 +40,9 @@ app.greet('you'); // "Hello, you"
   depth-first in order (avvio semantics) and `await app.ready()` then runs `onReady` hooks.
 - `definePlugin(fn, meta)` attaches `name`, `core` (semver range of this package),
   `dependencies`, `decorators`, `encapsulate`, `network` and `namespace`. They are checked at
-  load and fail with an `XcwdsError` whose `code` and `plugin` say what and who.
+  load and fail with an `XcwdsError` whose `code` and `plugin` say what and who. `network` is
+  `false` (the default) or `{ origins, reason }`: the servers the plugin contacts and why
+  ([docs/privacy.md](../../docs/privacy.md)).
 - Each plugin has its own view of the app. Decorators it adds stay in its scope unless it sets
   `encapsulate: false` (like `fastify-plugin`). Its `prefix` joins its parents' prefixes.
 - A plugin that doesn't finish loading in 10 s (`pluginTimeout`) fails with its name.

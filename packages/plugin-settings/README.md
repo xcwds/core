@@ -6,6 +6,8 @@ xcwds.github.io's `/settings`. It shows:
 - every plugin's settings, grouped by section, with built-in controls;
 - whole sections other plugins add, such as Install and What's new;
 - Your data: download, share or import a backup, and clear data per group or all at once;
+- Privacy: the servers the app contacts and why, from each plugin's `network` metadata and
+  `privacy.allowOrigins` (or that it contacts none), and every plugin's declared network use;
 - About.
 
 ```ts
@@ -82,7 +84,7 @@ Appearance, General and Timers, then the rest in the order their fields were add
 - **`app.settingsPage.control(name, Component)`** shows a field with your component (it gets the
   field's `name`). `@xcwds/plugin-shell` shows its `nav` setting with `NavPicker` this way.
 - **`app.settingsPage.add(Component, { props?, order? })`** adds a whole section. Fields sit at
-  order 0, Your data at 100 and About at 200; `@xcwds/plugin-install` adds its card at -100.
+  order 0, Your data at 100, Privacy at 150 and About at 200; `@xcwds/plugin-install` adds its card at -100.
 
 Both are usually called on boot, with the component imported dynamically (the component imports
 `@xcwds/sveltekit`, which imports your page entry).
