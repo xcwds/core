@@ -1,6 +1,6 @@
 # @xcwds/plugin-tools
 
-A list of small tools for an [@xcwds](https://github.com/xcwds/core) app: an index page, each
+A list of small tools for an [@xcwds](https://github.com/xcwds/xcwds) app: an index page, each
 tool's own page in the route registry, the tools you pin and the ones you used last on Home, and
 manifest shortcuts. Generalises xcwds.github.io's `/utils`.
 

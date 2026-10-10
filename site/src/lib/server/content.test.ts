@@ -47,7 +47,7 @@ describe('links', () => {
 			'/reference/sveltekit'
 		);
 		expect(linkTarget('../examples/plugin-tally', 'docs/plugin-guide.md', '')).toBe(
-			'https://github.com/xcwds/core/blob/main/examples/plugin-tally'
+			'https://github.com/xcwds/xcwds/blob/main/examples/plugin-tally'
 		);
 		expect(linkTarget('https://fastify.dev', 'docs/concepts.md', '')).toBe('https://fastify.dev');
 		expect(() => linkTarget('missing.md', 'docs/concepts.md', '')).toThrow(/doesn't exist/);

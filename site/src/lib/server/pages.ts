@@ -11,13 +11,13 @@ export const ROOT = (() => {
 	while (!existsSync(join(dir, 'pnpm-workspace.yaml'))) {
 		const up = dirname(dir);
 		if (up === dir)
-			throw new Error('The docs site must be built inside the xcwds/core repository.');
+			throw new Error('The docs site must be built inside the xcwds/xcwds repository.');
 		dir = up;
 	}
 	return dir;
 })();
 
-export const REPOSITORY = 'https://github.com/xcwds/core';
+export const REPOSITORY = 'https://github.com/xcwds/xcwds';
 
 export type Page = {
 	/** The site path, without the base path. */

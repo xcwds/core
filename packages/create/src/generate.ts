@@ -234,7 +234,7 @@ const README = (plan: AppPlan, pm: PackageManager) => {
 	const exec = pm === 'pnpm' ? 'pnpm' : 'npx';
 	return `# ${plan.name}
 
-${plan.tagline ? `${plan.tagline}\n\n` : ''}An installable, offline-first PWA made with [@xcwds](https://github.com/xcwds/core). It runs
+${plan.tagline ? `${plan.tagline}\n\n` : ''}An installable, offline-first PWA made with [@xcwds](https://github.com/xcwds/xcwds). It runs
 entirely in the browser: what people save stays on their device.
 
 \`\`\`sh

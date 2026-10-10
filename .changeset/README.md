@@ -23,7 +23,7 @@ The workflow does nothing until the repository variable `NPM_RELEASE` is `true`.
 1. On npmjs.com, own the `@xcwds` organization (scope).
 2. Give the workflow a way to publish, either:
    - **Trusted publishing** (no secret): for each package, add a trusted publisher on npmjs.com
-     with owner `xcwds`, repository `core`, workflow `release.yml` and environment `npm`. A package
+     with owner `xcwds`, repository `xcwds`, workflow `release.yml` and environment `npm`. A package
      must exist on npm before it can have one, so the first publish of each needs a token.
    - **A token**: an npm granular access token with read and write access to `@xcwds`, saved as the
      `NPM_TOKEN` secret of the `npm` environment (or of the repository).

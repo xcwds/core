@@ -8,7 +8,7 @@
 	"sideEffects": false,
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/xcwds/core.git",
+		"url": "git+https://github.com/xcwds/xcwds.git",
 		"directory": "packages/testing"
 	},
 	"exports": {

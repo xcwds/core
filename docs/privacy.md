@@ -1,7 +1,7 @@
 # Privacy: never phone home
 
 An @xcwds app keeps what people save on their device and talks to no server but the one it is
-served from. The framework checks this rather than leaving it to habit ([#22](https://github.com/xcwds/core/issues/22)):
+served from. The framework checks this rather than leaving it to habit ([#22](https://github.com/xcwds/xcwds/issues/22)):
 
 1. **Plugins declare their network use.** Every plugin's metadata has `network`: `false` (the
    default) or the origins it contacts and why.

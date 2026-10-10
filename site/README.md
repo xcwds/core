@@ -8,7 +8,7 @@ page runs the plugin the guide builds.
 ```sh
 pnpm build                          # at the root: the packages the site uses
 pnpm --filter @xcwds/site dev       # http://localhost:5173
-pnpm --filter @xcwds/site test:e2e  # builds at the root and under /core, then runs Playwright
+pnpm --filter @xcwds/site test:e2e  # builds at the root and under /xcwds, then runs Playwright
 ```
 
 - `src/lib/server/pages.ts` lists the pages; `xcwds.config.ts` passes them to a small local

@@ -35,7 +35,7 @@ for (const { name, dir, base } of targets) {
 			await expect(about).toContainText('Minimal');
 			await expect(about).toContainText('The smallest @xcwds app.');
 			await expect(page.getByTestId('version')).not.toBeEmpty();
-			await expect(about.getByRole('link', { name: 'github.com/xcwds/core' })).toBeVisible();
+			await expect(about.getByRole('link', { name: 'github.com/xcwds/xcwds' })).toBeVisible();
 			await expect(page.getByTestId('about-extra')).toHaveText('An example app for @xcwds.');
 			// Sections plugins add: @xcwds/plugin-install's card leads the page.
 			const sections = page.getByTestId('settings-page').locator(':scope > section');

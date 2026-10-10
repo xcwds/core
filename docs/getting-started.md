@@ -5,8 +5,8 @@ save on their own device. You describe it in one config file: its name, icon and
 list of plugins. This page takes you from nothing to an app on your phone.
 
 > **Not on npm yet.** The packages will be published with the first release
-> ([#26](https://github.com/xcwds/core/issues/26)). Until then, try it from a clone of
-> [xcwds/core](https://github.com/xcwds/core):
+> ([#26](https://github.com/xcwds/xcwds/issues/26)). Until then, try it from a clone of
+> [xcwds/xcwds](https://github.com/xcwds/xcwds):
 >
 > ```sh
 > pnpm install && pnpm build
