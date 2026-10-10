@@ -21,12 +21,15 @@ describe('options', () => {
 			path: '/settings',
 			title: 'Settings',
 			emoji: '⚙️',
+			width: 'narrow',
 			sections: {},
 			source: null,
 			backupName: 'backup'
 		});
 		expect(() => resolveOptions({ path: 'settings' })).toThrow(/`path`/);
 		expect(() => resolveOptions({ title: '' })).toThrow(/`title`/);
+		expect(() => resolveOptions({ emoji: ' ' })).toThrow(/`emoji`/);
+		expect(() => resolveOptions({ width: 'wide' })).toThrow(/`width`/);
 		expect(() => resolveOptions({ sections: { tools: 3 } })).toThrow(/`sections`/);
 		expect(() => resolveOptions({ source: 'http://example.com' })).toThrow(/`source`/);
 		expect(() => resolveOptions({ backupName: 'my backup' })).toThrow(/`backupName`/);
@@ -67,6 +70,16 @@ describe('the plugin', () => {
 			width: 'narrow'
 		});
 		expect(app.settingsPage!.options.path).toBe('/prefs');
+	});
+
+	it('can leave out the emoji and split the page on wide screens', async () => {
+		const app = await buildTestApp(
+			{ plugins: [settingsFactory({ emoji: '', width: 'split' })] },
+			{ import: importer }
+		);
+		const route = app.routes.get('/settings');
+		expect(route).toMatchObject({ title: 'Settings', width: 'split' });
+		expect(route?.emoji).toBeUndefined();
 	});
 
 	it('lets plugins add sections in order, and controls for their fields', async () => {

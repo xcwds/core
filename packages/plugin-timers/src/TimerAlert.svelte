@@ -4,17 +4,24 @@
 	 * timer (the alarm rings everywhere). Put it in the shell's notification stack.
 	 */
 	import { useApp } from '@xcwds/sveltekit';
+	import { untrack } from 'svelte';
 	import type { TimerItem } from './client.js';
 	import { MINUTE } from './timer.js';
 	import { href } from './paths.js';
 
+	let { openLabel = 'Open timers' }: { openLabel?: string } = $props();
+
 	const timers = useApp().timers;
-	let ringing = $state<readonly TimerItem[]>([]);
+	// Raw, so the items stay the timers' own objects and compare by identity below.
+	let ringing = $state.raw<readonly TimerItem[]>([]);
 	$effect(() =>
 		timers?.subscribe((list) => {
 			const next = timers.shown() ? [] : list.filter((i) => timers.ringing(i));
-			// Ticks come several times a second; only re-render when the set changes.
-			if (next.length !== ringing.length || next.some((i, n) => i !== ringing[n])) ringing = next;
+			// Ticks come several times a second; only re-render when the set changes. Untracked:
+			// the first call runs inside this effect, which mustn't depend on what it writes.
+			untrack(() => {
+				if (next.length !== ringing.length || next.some((i, n) => i !== ringing[n])) ringing = next;
+			});
 		})
 	);
 
@@ -38,7 +45,7 @@
 			<a
 				href={href(timers.page)}
 				class="{action} flex items-center underline"
-				aria-label="Open timers">Open</a
+				aria-label={openLabel}>Open</a
 			>
 		{/if}
 	</div>

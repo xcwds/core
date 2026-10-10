@@ -58,6 +58,12 @@ export default {
 afterEach(() => rm(root, { recursive: true, force: true }));
 
 describe('generate', () => {
+	it('loads the config in a fresh checkout, before `svelte-kit sync` writes the tsconfig it extends', async () => {
+		await write('tsconfig.json', JSON.stringify({ extends: './.svelte-kit/tsconfig.json' }));
+		const state = await generate({ root });
+		expect(state.config.brand.name).toBe('Test');
+	});
+
 	it('loads a TypeScript config, runs build hooks and writes the worker module', async () => {
 		const state = await generate({ root, base: '/sub' });
 		expect(state.config.brand.shortName).toBe('Short');

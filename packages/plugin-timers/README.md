@@ -59,6 +59,7 @@ export default defineConfig({
 - **Components:**
   - `TimerList.svelte`: every timer, plus a form to start one.
   - `Countdown.svelte`: one timer's remaining time, `<Countdown id={item.id} />`.
-  - `TimerAlert.svelte`: finished timers with +1 min, Stop and Open.
+  - `TimerAlert.svelte`: finished timers with +1 min, Stop and Open (`openLabel` names the Open
+    link for screen readers; defaults to "Open timers").
 - **Pure functions** from the main entry (`start`, `pause`, `add`, `remaining`,
   `formatDuration` and others) for tests and custom timers.

@@ -32,7 +32,7 @@ describe('validateConfig', () => {
 				lang: 'en'
 			},
 			manifest: {},
-			storage: { prefix: 'app:' },
+			storage: { prefix: 'app:', appName: 'Pocketbox' },
 			privacy: { allowOrigins: [] },
 			plugins: []
 		});
@@ -47,7 +47,7 @@ describe('validateConfig', () => {
 		const r = validateConfig(
 			{
 				brand: { tagline: 3, icon: 'icon.png', themeColor: { dark: 'not a colour!' }, colour: 'x' },
-				storage: { prefix: 'app' },
+				storage: { prefix: 'app', appName: ' ' },
 				privacy: {
 					allowOrigins: ['http://example.com', 'https://example.com/path', 'https://ok.example']
 				},
@@ -67,6 +67,7 @@ describe('validateConfig', () => {
 			'brand.themeColor.dark',
 			'brand.colour',
 			'storage.prefix',
+			'storage.appName',
 			'privacy.allowOrigins[0]',
 			'privacy.allowOrigins[1]',
 			'plugins[0]',

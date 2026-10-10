@@ -21,6 +21,7 @@ export function getApp(): App {
 		const app = setupApp({
 			name: data.name,
 			storagePrefix: data.storagePrefix,
+			appName: data.backupApp,
 			routes: data.routes,
 			plugins,
 			// Prerendering has no storage: pages render with defaults, and the browser loads the

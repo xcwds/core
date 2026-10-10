@@ -3,7 +3,7 @@
 	 * The app shell: a header with the page title (the page's only `<h1>`) and a back arrow, the
 	 * main navigation (a tab bar on phones; header links or a sidebar on wider screens, per the
 	 * `nav` setting), and one notification stack. Wrap the root layout's content in it, inside
-	 * `<App>`; pages render their own `<main class="page-narrow">` or `page-wide`.
+	 * `<App>`; pages render their own `<main class="page-narrow">`, `page-wide` or `page-split`.
 	 *
 	 * ```svelte
 	 * <App><Shell>{@render children()}<Snippet notices>…</Snippet></Shell></App>
@@ -45,10 +45,15 @@
 	const nav = sections.length > 1;
 	/**
 	 * The header lines up with the page's container: wide pages always, narrow ones beside the
-	 * sidebar (header links need more room than a narrow page has).
+	 * sidebar (header links need more room than a narrow page has), and split ones like narrow
+	 * ones until their two columns fit (`xl`).
 	 */
 	const headerWidth = $derived(
-		info.width === 'wide' ? 'page-wide' : 'page-wide sidebar:page-narrow'
+		{
+			wide: 'page-wide',
+			narrow: 'page-wide sidebar:page-narrow',
+			split: 'page-wide sidebar:page-narrow xl:sidebar:page-wide'
+		}[info.width]
 	);
 	const pageTitle = $derived(
 		info.title === brand.name ? brand.name : `${info.title} · ${brand.name}`

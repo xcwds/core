@@ -61,7 +61,7 @@ export const build = definePlugin(
 				title: tool.name,
 				emoji: tool.emoji,
 				parent: options.path,
-				width: 'narrow',
+				width: tool.width ?? 'narrow',
 				...(tool.private ? { private: true } : {})
 			});
 		};

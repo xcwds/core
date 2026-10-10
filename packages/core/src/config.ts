@@ -47,7 +47,14 @@ export type XcwdsConfig = {
 	brand: BrandConfig;
 	/** Extra Web App Manifest fields, merged over the generated ones. */
 	manifest?: Record<string, unknown>;
-	storage?: { prefix?: string };
+	storage?: {
+		prefix?: string;
+		/**
+		 * The app's name in backups, checked on import. Defaults to `brand.name`; set it to keep
+		 * importing backups an app made before it moved onto @xcwds.
+		 */
+		appName?: string;
+	};
 	/**
 	 * Origins the app may contact besides those its plugins declare (#22): `https:` or `wss:`.
 	 * Empty: none. The build fails on any other origin it finds, and the CSP blocks the rest.
@@ -62,7 +69,7 @@ export type ResolvedConfig = {
 		themeColor: Required<ThemeColor>;
 	};
 	manifest: Record<string, unknown>;
-	storage: { prefix: string };
+	storage: { prefix: string; appName: string };
 	privacy: { allowOrigins: string[] };
 	plugins: Descriptor<Record<string, unknown>>[];
 };
@@ -161,15 +168,25 @@ export function validateConfig(
 	}
 
 	let prefix = 'app:';
+	let appName: string | undefined;
 	if (input.storage !== undefined) {
 		if (!isRecord(input.storage)) issue('storage', 'must be an object');
-		else if (input.storage.prefix !== undefined) {
-			if (
-				typeof input.storage.prefix !== 'string' ||
-				!/^[a-z0-9][a-z0-9-]*:$/i.test(input.storage.prefix)
-			)
-				issue('storage.prefix', 'must be letters, digits or dashes ending in ":" (e.g. "app:")');
-			else prefix = input.storage.prefix;
+		else {
+			const extra = Object.keys(input.storage).filter((k) => k !== 'prefix' && k !== 'appName');
+			for (const key of extra) issue(`storage.${key}`, 'is not a config option');
+			if (input.storage.prefix !== undefined) {
+				if (
+					typeof input.storage.prefix !== 'string' ||
+					!/^[a-z0-9][a-z0-9-]*:$/i.test(input.storage.prefix)
+				)
+					issue('storage.prefix', 'must be letters, digits or dashes ending in ":" (e.g. "app:")');
+				else prefix = input.storage.prefix;
+			}
+			if (input.storage.appName !== undefined) {
+				if (typeof input.storage.appName !== 'string' || input.storage.appName.trim() === '')
+					issue('storage.appName', 'must be a non-empty string');
+				else appName = input.storage.appName;
+			}
 		}
 	}
 
@@ -228,7 +245,7 @@ export function validateConfig(
 		config: {
 			brand: { name, shortName, tagline, description, icon, themeColor, backgroundColor, lang },
 			manifest,
-			storage: { prefix },
+			storage: { prefix, appName: appName ?? name },
 			privacy: { allowOrigins },
 			plugins
 		}

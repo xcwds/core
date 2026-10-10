@@ -162,9 +162,6 @@ export function startApp(): void {
 	});
 
 	onMount(() => {
-		// Hydrated: input from now on reaches the app (`gotoHydrated` in @xcwds/testing waits
-		// for this).
-		document.documentElement.dataset.hydrated = '';
 		const stops: (() => void)[] = [];
 		// The first page was loaded, not navigated to: its guards run once the app has booted.
 		// Captured now: by then the user may have navigated, and the redirect is only for this.
@@ -200,7 +197,12 @@ export function startApp(): void {
 				console.error('[xcwds]', error);
 				return null;
 			})
-			.then(settle);
+			.then((loaded) => {
+				// Hydrated and booted: input from now on reaches the app, and plugins follow the
+				// browser's events (`gotoHydrated` in @xcwds/testing waits for this).
+				if (active) document.documentElement.dataset.hydrated = '';
+				settle(loaded);
+			});
 		const onVisibility = () =>
 			void ready.then((a) =>
 				a?.hooks.run(document.visibilityState === 'hidden' ? 'onHidden' : 'onVisible', [])

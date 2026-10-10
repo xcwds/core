@@ -105,7 +105,10 @@ export async function generate({
 	const { runnerImport } = await import('vite');
 	const { module, dependencies } = await runnerImport<{ default: unknown }>(configFile, {
 		root,
-		logLevel: 'error'
+		logLevel: 'error',
+		// Not the app's tsconfig: it usually extends `.svelte-kit/tsconfig.json`, which a fresh
+		// checkout only has once `svelte-kit sync` has run, and that sync loads this config.
+		esbuild: { tsconfigRaw: '{}' }
 	});
 	const fileExists = (path: string) => existsSync(resolve(root, path));
 	let config = resolveConfig(module.default, { fileExists });
@@ -135,7 +138,7 @@ export async function generate({
 		default: Record<string, unknown>[];
 	};
 
-	const app = createApp({ storage: memoryStorage(), appName: config.brand.name });
+	const app = createApp({ storage: memoryStorage(), appName: config.storage.appName });
 	const routes = decorateRoutes(app);
 	plugins.forEach((p, i) => {
 		const plugin = buildPlugin(p.name, entries.default[i]!);

@@ -86,6 +86,7 @@ async function openTab(group: Group, initial: string): Promise<TestApp> {
 	const app = setupApp({
 		name: prepared.name,
 		storagePrefix: prepared.storagePrefix,
+		appName: prepared.appName,
 		routes: prepared.routes,
 		plugins: prepared.plugins,
 		storage: adapter,

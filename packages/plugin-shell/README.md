@@ -59,9 +59,11 @@ export default defineConfig({
 <ErrorPage />
 ```
 
-Other pages render their content in `<main class="page-narrow">` (tools, settings) or
-`<main class="page-wide">` (lists, Home), and their route's `width` (`app.route()`, default
-`wide`) names the same container so the header lines up with it. Pages don't render their own
+Other pages render their content in `<main class="page-narrow">` (tools, settings),
+`<main class="page-wide">` (lists, Home) or `<main class="page-split @container">` (narrow until
+`xl`, then wide enough for two columns, which the page lays out with `@[50rem]:` container
+queries), and their route's `width` (`app.route()`, default `wide`) names the same container so
+the header lines up with it. Pages don't render their own
 `<h1>` or back links.
 
 ## Styles (Tailwind v4)
@@ -77,7 +79,7 @@ scan `node_modules`, so import the shell's CSS, which adds its `@source`:
 ```
 
 It provides the `sidebar:` variant (the sidebar layout; use `md:` for anything tied to the tab
-bar), the `page-narrow` and `page-wide` utilities, and the accessibility baseline: 44px controls
+bar), the `page-narrow`, `page-wide` and `page-split` utilities, and the accessibility baseline: 44px controls
 (checkboxes and radio buttons get theirs from their `<label>`), a `:focus-visible` ring and
 reduced motion. Theme it by setting the `--xcwds-shell-*` and `--xcwds-toast-*` variables on
 `:root` (and `:root[data-color-scheme='dark']`); see `styles.css` for the list.

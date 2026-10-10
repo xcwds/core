@@ -36,6 +36,7 @@ export function clientModule(state: BuildState): string {
 		tagline: state.config.brand.tagline,
 		base: state.base,
 		storagePrefix: state.config.storage.prefix,
+		backupApp: state.config.storage.appName,
 		routes: state.routes,
 		head: state.head,
 		tags: headTags(state.config, { base: state.base }),

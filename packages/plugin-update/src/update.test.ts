@@ -99,11 +99,15 @@ const tick = () => new Promise((resolve) => setTimeout(resolve));
 
 describe('options', () => {
 	it('fills in defaults and refuses mistakes', () => {
-		expect(resolveOptions()).toEqual({ checkEveryMs: 3_600_000, askBeforeReload: true });
-		expect(resolveOptions({ checkEveryMs: 0, askBeforeReload: false })).toEqual({
-			checkEveryMs: 0,
-			askBeforeReload: false
+		expect(resolveOptions()).toEqual({
+			checkEveryMs: 3_600_000,
+			askBeforeReload: true,
+			marker: 'xcwds:just-updated'
 		});
+		expect(
+			resolveOptions({ checkEveryMs: 0, askBeforeReload: false, marker: 'app:just-updated' })
+		).toEqual({ checkEveryMs: 0, askBeforeReload: false, marker: 'app:just-updated' });
+		expect(() => resolveOptions({ marker: '' })).toThrow(/`marker`/);
 		expect(() => resolveOptions({ checkEveryMs: -1 })).toThrow(/`checkEveryMs`/);
 		expect(() => resolveOptions({ checkEveryMs: 1.5 })).toThrow(/`checkEveryMs`/);
 		expect(() => resolveOptions({ checkEveryMs: 2 ** 31 })).toThrow(/`checkEveryMs`/);
@@ -136,7 +140,41 @@ describe('the page', () => {
 		await app.close();
 		const reloaded = await buildTestApp({ plugins: [[client, {}]] });
 		expect(reloaded.update!.state.justUpdated).toBe(true);
+		expect(reloaded.update!.handover()).toEqual({});
 		expect(browser.session.has(JUST_UPDATED)).toBe(false);
+	});
+
+	it('carries values over to the new version', async () => {
+		const browser = fakeBrowser();
+		// A value that fails is reported, not carried.
+		const app = await buildTestApp({ plugins: [[client, {}]] }, { strict: false });
+		await tick();
+		expect(app.update!.handover()).toBeNull();
+		const stop = app.update!.carry('notes', () => 7);
+		app.update!.carry('broken', () => {
+			throw new Error('nope');
+		});
+		app.update!.carry('gone', () => 1)();
+		const next = browser.deploy();
+		app.update!.apply();
+		browser.takeOver(next);
+		stop();
+		expect(app.errors).toHaveLength(1);
+		await app.close();
+		const reloaded = await buildTestApp({ plugins: [[client, {}]] });
+		expect(reloaded.update!.handover()).toEqual({ notes: 7 });
+		// Read once: the next load isn't an update.
+		await reloaded.close();
+		expect((await buildTestApp({ plugins: [[client, {}]] })).update!.handover()).toBeNull();
+	});
+
+	it('accepts the marker an app used before @xcwds', async () => {
+		const browser = fakeBrowser();
+		browser.session.set('app:just-updated', JSON.stringify({ changelog: 12 }));
+		const app = await buildTestApp({ plugins: [[client, { marker: 'app:just-updated' }]] });
+		expect(app.update!.state.justUpdated).toBe(true);
+		expect(app.update!.handover()).toEqual({ changelog: 12 });
+		expect(browser.session.has('app:just-updated')).toBe(false);
 	});
 
 	it('offers a version that was already waiting or installing when the page opened', async () => {
