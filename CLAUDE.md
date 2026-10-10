@@ -8,7 +8,8 @@ same PR when a decision changes.
 pnpm monorepo: `packages/*` are published under the `@xcwds` scope (all `"private": true` until
 #26), `examples/*` are test apps. Never publish to npm unless the user asks.
 
-- Before pushing: `pnpm build && pnpm check && pnpm lint && pnpm publint && pnpm test:unit --run && pnpm test:e2e`.
+- Before pushing: `pnpm build && pnpm check && pnpm lint && pnpm publint && pnpm test:unit --run && pnpm test:e2e`,
+  plus `pnpm test:starter` when a generated app could change (`packages/create`, or any package it uses).
 - In Claude Code cloud containers don't run `playwright install`; set
   `CHROMIUM_PATH=/opt/pw-browsers/chromium-*/chrome-linux/chrome` (the version that exists).
 - The kernel (`@xcwds/core`) stays framework-agnostic: no Svelte, no DOM-framework imports, and no

@@ -12,10 +12,11 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"test:unit": "vitest",
-		"test:e2e": "pnpm --filter \"./examples/*\" test:e2e",
+		"test:e2e": "pnpm --filter \"./examples/*\" --filter \"!./examples/starter\" test:e2e",
 		"test": "pnpm test:unit --run && pnpm test:e2e",
 		"publint": "pnpm --filter \"./packages/*\" publint",
-		"changeset": "changeset"
+		"changeset": "changeset",
+		"test:starter": "node packages/create/scripts/test-starter.js"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.29.7",

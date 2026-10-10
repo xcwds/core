@@ -1,0 +1,49 @@
+{
+	"name": "@xcwds/create",
+	"version": "0.0.0",
+	"private": true,
+	"description": "npm create @xcwds: a new installable, offline-first PWA on @xcwds in one command, and `xcwds add <plugin>` to add plugins later.",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/xcwds/core.git",
+		"directory": "packages/create"
+	},
+	"bin": {
+		"create": "./dist/create.js",
+		"xcwds": "./dist/xcwds.js"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"scripts": {
+		"build": "node scripts/versions.js && tsc -p tsconfig.build.json",
+		"check": "node scripts/versions.js && tsc -p tsconfig.json --noEmit",
+		"publint": "publint"
+	},
+	"devDependencies": {
+		"@types/node": "^24",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.15"
+	},
+	"keywords": [
+		"pwa",
+		"offline-first",
+		"create",
+		"starter",
+		"xcwds"
+	],
+	"engines": {
+		"node": ">=22.18"
+	}
+}
