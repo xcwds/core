@@ -29,6 +29,33 @@ describe('appFiles', () => {
 			expect(unformatted).toEqual([]);
 		});
 
+	it('stays formatted with a long name and tagline that have quotes and newlines', async () => {
+		const name = `The "Very" Long Name Of Somebody's Pocket Toolbox\nFor Every Day ${'and night '.repeat(6)}`;
+		const files = appFiles({
+			name,
+			tagline: `${'A tagline '.repeat(15)}\n'x'`,
+			plugins: TEMPLATES.tools
+		});
+		const rc = files.get('.prettierrc')!;
+		const unformatted: string[] = [];
+		for (const [path, content] of files)
+			if (!(await formatted(path, content, rc))) unformatted.push(path);
+		expect(unformatted).toEqual([]);
+		expect(files.get('xcwds.config.ts')).toContain(
+			`name: 'The "Very" Long Name Of Somebody\\'s Pocket Toolbox For Every Day and night`
+		);
+	});
+
+	it('pins pnpm in the workflow when the version is unknown', () => {
+		const loose = appFiles({ name: 'A', plugins: [] }).get('.github/workflows/deploy.yml')!;
+		expect(loose).toContain('pnpm/action-setup@v4\n        with:\n          version: 10');
+		const pinned = appFiles({ name: 'A', plugins: [], packageManagerVersion: 'pnpm@10.28.0' });
+		expect(pinned.get('.github/workflows/deploy.yml')).not.toContain('version: 10');
+		expect(JSON.parse(pinned.get('package.json')!).packageManager).toBe('pnpm@10.28.0');
+		const npm = appFiles({ name: 'A', plugins: [], packageManager: 'npm' });
+		expect(npm.get('.github/workflows/deploy.yml')).toContain('npm ci');
+	});
+
 	it('wires up the picked plugins and their requirements', () => {
 		const files = appFiles({ name: 'Box', plugins: ['changelog', 'timers'] });
 		expect(withRequirements(['changelog', 'timers'])).toEqual([

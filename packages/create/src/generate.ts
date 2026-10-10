@@ -162,6 +162,25 @@ export function pluginImport(id: PluginId): string {
 	return `import ${id} from '${CATALOG[id].package}';`;
 }
 
+/** Whether a line passes Prettier's 100 columns (it counts a tab as 2). */
+const tooLong = (line: string) => line.length + line.match(/^\t*/)![0].length > 100;
+
+/**
+ * `key: value,` at `depth` tabs as Prettier writes it: a value that doesn't fit goes on its own
+ * line, unless the key is shorter than 5 characters.
+ */
+export function property(key: string, value: string, depth: number): string {
+	const tabs = '\t'.repeat(depth);
+	const line = `${tabs}${key}: ${value},`;
+	return tooLong(line) && key.length >= 5 ? `${tabs}${key}:\n${tabs}\t${value},` : line;
+}
+
+/** `const name = value;` as Prettier writes it: a value that doesn't fit goes on its own line. */
+export function constant(name: string, value: string): string {
+	const line = `const ${name} = ${value};`;
+	return tooLong(line) ? `const ${name} =\n\t${value};` : line;
+}
+
 function config(plan: AppPlan): string {
 	const imports = [
 		"import { defineConfig } from '@xcwds/core';",
@@ -169,8 +188,8 @@ function config(plan: AppPlan): string {
 		...plan.plugins.flatMap((id) => CATALOG[id].configImports ?? [])
 	];
 	const brand = [
-		`\t\tname: ${quote(plan.name)},`,
-		...(plan.tagline ? [`\t\ttagline: ${quote(plan.tagline)},`] : []),
+		property('name', quote(plan.name), 2),
+		...(plan.tagline ? [property('tagline', quote(plan.tagline), 2)] : []),
 		"\t\ticon: 'icon.svg',",
 		"\t\tthemeColor: { light: '#ffffff', dark: '#0f172a' }"
 	];
@@ -471,6 +490,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(() => server.close());
 
+${constant('NAME', quote(plan.name))}
 const PAGES = [${pages.map(quote).join(', ')}];
 
 test('every page opens, with tap targets big enough for a finger', async ({ page }) => {
@@ -488,7 +508,7 @@ test('unknown pages show the error page', async ({ page }) => {
 
 test('the manifest makes it installable', async ({ request }) => {
 	const manifest = await (await request.get(url('/manifest.webmanifest'))).json();
-	expect(manifest).toMatchObject({ name: ${quote(plan.name)}, display: 'standalone', start_url: '/' });
+	expect(manifest).toMatchObject({ name: NAME, display: 'standalone', start_url: '/' });
 	expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(
 		expect.arrayContaining(['192x192', '512x512'])
 	);
@@ -517,11 +537,13 @@ test.describe('with the service worker', () => {
 `;
 };
 
-const workflow = (pm: PackageManager) => {
+const workflow = (pm: PackageManager, pinned: boolean) => {
 	const pnpm = pm === 'pnpm';
 	const setup = [
 		'      - uses: actions/checkout@v4',
 		...(pnpm ? ['      - uses: pnpm/action-setup@v4'] : []),
+		// Without \`packageManager\` in package.json, the action needs a version.
+		...(pnpm && !pinned ? ['        with:', '          version: 10'] : []),
 		'      - uses: actions/setup-node@v4',
 		'        with:',
 		'          node-version: 24',
@@ -545,7 +567,8 @@ permissions:
 
 concurrency:
   group: deploy-\${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push to a pull request replaces the older run; deployments always finish.
+  cancel-in-progress: \${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -584,11 +607,13 @@ ${setup}
 
 /** Every file of a new app, by path relative to its root. */
 export function appFiles(options: GenerateOptions): Map<string, string> {
-	const name = options.name.trim();
+	// One line each: they go into string literals and headings.
+	const line = (s: string | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
+	const name = line(options.name);
 	if (!name) throw new Error('The app needs a name.');
 	const plan: AppPlan = {
 		name,
-		tagline: options.tagline?.trim() ?? '',
+		tagline: line(options.tagline),
 		plugins: withRequirements(options.plugins)
 	};
 	const pm = options.packageManager ?? 'pnpm';
@@ -632,7 +657,7 @@ export function appFiles(options: GenerateOptions): Map<string, string> {
 		],
 		['src/app.test.ts', UNIT_TEST],
 		['e2e/app.test.ts', E2E(plan)],
-		['.github/workflows/deploy.yml', workflow(pm)]
+		['.github/workflows/deploy.yml', workflow(pm, Boolean(options.packageManagerVersion))]
 	]);
 	for (const id of plan.plugins)
 		for (const file of CATALOG[id].files?.(plan) ?? []) files.set(file.path, file.content);
