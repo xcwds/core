@@ -28,6 +28,7 @@ The workflow does nothing until the repository variable `NPM_RELEASE` is `true`.
    - **A token**: an npm granular access token with read and write access to `@xcwds`, saved as the
      `NPM_TOKEN` secret of the `npm` environment (or of the repository).
 3. In Settings → Actions → General, allow GitHub Actions to create pull requests.
-4. Optionally, add required reviewers to the `npm` environment so each release waits for approval.
+4. Optionally, add required reviewers to the `npm` environment. Every run then waits for approval,
+   including the ones that only update the Version packages PR.
 
 Run it by hand from the Actions tab (Release → Run workflow) on `main` at any time.

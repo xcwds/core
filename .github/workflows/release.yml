@@ -32,7 +32,7 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Add protection rules (required reviewers) to this environment to approve each release.
+    # Required reviewers on this environment gate every run: version PR updates and publishes.
     environment: npm
     # Job permissions replace the workflow's.
     permissions:
