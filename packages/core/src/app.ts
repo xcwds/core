@@ -38,7 +38,7 @@ export type PluginMeta = {
 	encapsulate?: boolean;
 	/**
 	 * Network use (#22): `false` (the default) or the `https:`/`wss:` origins it contacts and
-	 * why. Checked when the plugin loads; the build fails on origins no plugin declares, and the
+	 * why. Checked when the plugin loads; the build fails on origins plugins don't declare, and the
 	 * page's CSP only allows declared ones.
 	 */
 	network?: NetworkUse;

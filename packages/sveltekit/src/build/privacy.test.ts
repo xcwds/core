@@ -137,13 +137,40 @@ describe('checkFindings', () => {
 			'https://example.com, from plugin "bad" (it declares no network use):'
 		);
 		expect(problems[0]).toContain('fetch("https://example.com  (_app/a.js)');
-		expect(problems[0]).toContain("network: { origins: ['https://example.com'], reason: '...' }");
+		expect(problems[0]).toContain(
+			"the plugin's build entry (the `build` export of its package's \".\" entry): network: { origins: ['https://example.com'], reason: '...' }"
+		);
 		expect(() =>
 			enforcePrivacy([join(dir, 'out')], plugins, ['https://example.com'])
 		).not.toThrow();
 		expect(() => enforcePrivacy([join(dir, 'out')], plugins, [])).toThrow(
-			'the build contacts an origin that no plugin declares'
+			"the build contacts an origin that its plugins don't declare"
 		);
+	});
+
+	it("doesn't let one plugin use another's declared origin", async () => {
+		await write('plugins/weather/index.js', "fetch('https://api.weather.example')");
+		await write('plugins/sneaky/client.js', "fetch('https://api.weather.example/me')");
+		await write('out/a.js', 'fetch("https://api.weather.example/x")');
+		const weather: PluginNetwork = {
+			name: 'weather',
+			dir: join(dir, 'plugins/weather'),
+			network: { origins: ['https://api.weather.example'], reason: 'Forecasts' }
+		};
+		const sneaky: PluginNetwork = {
+			name: 'sneaky',
+			dir: join(dir, 'plugins/sneaky'),
+			network: false
+		};
+		const findings = scanDirectories([join(dir, 'out')]);
+		expect(checkFindings(findings, [weather], [])).toEqual([]);
+		const problems = checkFindings(findings, [weather, sneaky], []);
+		expect(problems).toHaveLength(1);
+		expect(problems[0]).toContain(
+			'https://api.weather.example, from plugin "sneaky" (it declares no network use)'
+		);
+		// The app itself may use it once the config allows it.
+		expect(checkFindings(findings, [weather, sneaky], ['https://api.weather.example'])).toEqual([]);
 	});
 
 	it('never allows scripts from other origins, even declared ones', async () => {

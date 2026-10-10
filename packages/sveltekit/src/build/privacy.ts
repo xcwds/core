@@ -1,7 +1,7 @@
 /**
  * "Never phone home" at build time (#22). Scans the built site (page bundle, service worker,
  * prerendered HTML and CSS) for URLs on other origins in the places that load or send something,
- * and fails the build on any origin that no plugin declares (`network` metadata) and
+ * and fails the build on any origin that its plugins don't declare (`network` metadata) and
  * `privacy.allowOrigins` doesn't list.
  *
  * A static scan can't see URLs built at runtime, so it is a guard rail; the CSP is the
@@ -218,7 +218,9 @@ export function allowedOrigins(
 
 /**
  * The build's problems, as one message per origin, or `[]` when every external URL is declared.
- * Scripts never load from other origins, declared or not: the CSP only allows the app's own.
+ * An origin a plugin declares is only that plugin's: another plugin whose sources use it must
+ * declare it too, so the settings page names everyone who contacts it. Scripts never load from
+ * other origins, declared or not: the CSP only allows the app's own.
  */
 export function checkFindings(
 	findings: FileFinding[],
@@ -227,13 +229,16 @@ export function checkFindings(
 ): string[] {
 	const allowed = allowedOrigins(plugins, allowOrigins);
 	const byOrigin = new Map<string, FileFinding[]>();
-	for (const f of findings) {
-		if (f.kind !== 'script' && allowed.has(f.origin)) continue;
-		byOrigin.set(f.origin, [...(byOrigin.get(f.origin) ?? []), f]);
-	}
-	return [...byOrigin].map(([origin, list]) => {
+	for (const f of findings) byOrigin.set(f.origin, [...(byOrigin.get(f.origin) ?? []), f]);
+	const problems: string[] = [];
+	for (const [origin, list] of byOrigin) {
+		const scripts = list.some((f) => f.kind === 'script');
+		if (!scripts && allowOrigins.includes(origin)) continue;
+		const blame = suspects(origin, plugins).filter(
+			({ network }) => !network || !network.origins.includes(origin)
+		);
+		if (!scripts && allowed.has(origin) && !blame.length) continue;
 		const where = [...new Set(list.map((f) => `    ${f.snippet}  (${f.file})`))].slice(0, 5);
-		const blame = suspects(origin, plugins);
 		const who = blame.length
 			? `from ${blame
 					.map(({ name, network }) =>
@@ -243,14 +248,14 @@ export function checkFindings(
 					)
 					.join(', ')}`
 			: 'from the app or one of its dependencies';
-		const scripts = list.some((f) => f.kind === 'script');
 		const fix = scripts
 			? `Scripts only load from the app's own origin (the CSP blocks others): bundle it instead.`
 			: blame.length
-				? `If it's meant to, declare it in the plugin's metadata: network: { origins: ['${origin}'], reason: '...' }.`
+				? `If it's meant to, declare it in the metadata of the plugin's build entry (the \`build\` export of its package's "." entry): network: { origins: ['${origin}'], reason: '...' }.`
 				: `If it's meant to, add '${origin}' to privacy.allowOrigins in the xcwds config.`;
-		return `${origin}, ${who}:\n${where.join('\n')}\n  ${fix}`;
-	});
+		problems.push(`${origin}, ${who}:\n${where.join('\n')}\n  ${fix}`);
+	}
+	return problems;
 }
 
 /** Scans the build output and throws when it contacts an origin nobody declared. */
@@ -262,6 +267,6 @@ export function enforcePrivacy(
 	const problems = checkFindings(scanDirectories(dirs), plugins, allowOrigins);
 	if (!problems.length) return;
 	throw new Error(
-		`@xcwds/sveltekit: the build contacts ${problems.length === 1 ? 'an origin' : 'origins'} that no plugin declares:\n\n${problems.join('\n\n')}\n`
+		`@xcwds/sveltekit: the build contacts ${problems.length === 1 ? 'an origin' : 'origins'} that its plugins don't declare:\n\n${problems.join('\n\n')}\n`
 	);
 }

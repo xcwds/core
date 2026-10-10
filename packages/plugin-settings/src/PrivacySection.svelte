@@ -27,7 +27,7 @@
 	{:else}
 		<p>{brand.name} only contacts these servers. Everything else you save stays on this device.</p>
 		<ul class="flex flex-col gap-2">
-			{#each contacts as contact (contact.by)}
+			{#each contacts as contact, i (i)}
 				<li>
 					<span class="font-medium">{contact.origins.map(host).join(', ')}</span>:
 					{contact.reason}

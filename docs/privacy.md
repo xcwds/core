@@ -7,8 +7,8 @@ served from. The framework checks this rather than leaving it to habit ([#22](ht
    default) or the origins it contacts and why.
 2. **The build fails on undeclared origins.** After SvelteKit builds the site, the adapter scans
    the page bundle, the service worker, static files and the prerendered pages for URLs on other
-   origins, and stops the build on any that no plugin declares and `privacy.allowOrigins` doesn't
-   list.
+   origins, and stops the build on any that its plugins don't declare and `privacy.allowOrigins`
+   doesn't list.
 3. **The Content Security Policy enforces it.** Every page, including the `404.html` fallback,
    carries a `<meta>` CSP that only allows the app's own origin plus the declared ones.
 4. **Settings shows it.** The settings page (`@xcwds/plugin-settings`) has a Privacy section
@@ -37,7 +37,12 @@ Origins are `https:` or `wss:` origins exactly as `new URL(x).origin` writes the
 trailing slash). `reason` is shown to people on the settings page, so write it for them. A plugin
 with invalid `network` metadata fails to load with `XCWDS_ERR_PLUGIN_META`.
 
-An app that contacts a server itself (not through a plugin) lists it in its config:
+A declaration covers its own plugin only: if another plugin's sources use the same origin, that
+plugin must declare it too, so the settings page names everyone who contacts it. A plugin
+without a build entry can't declare anything; give it one (`export const build = definePlugin(...)`).
+
+An app that contacts a server itself (not through a plugin) lists it in its config. Origins
+listed there are allowed for the app and every plugin:
 
 ```ts
 // xcwds.config.ts
@@ -64,11 +69,11 @@ The error names the origin, the code and file it was found in, and the plugin wh
 mentions it:
 
 ```
-@xcwds/sveltekit: the build contacts an origin that no plugin declares:
+@xcwds/sveltekit: the build contacts an origin that its plugins don't declare:
 
 https://example.com, from plugin "xcwds-plugin-bad" (it declares no network use):
     fetch("https://example.com/track  (_app/immutable/chunks/WAzvenzg.js)
-  If it's meant to, declare it in the plugin's metadata: network: { origins: ['https://example.com'], reason: '...' }.
+  If it's meant to, declare it in the metadata of the plugin's build entry (the `build` export of its package's "." entry): network: { origins: ['https://example.com'], reason: '...' }.
 ```
 
 Scripts never load from another origin, declared or not: the CSP's `script-src` only allows the
