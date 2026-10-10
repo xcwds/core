@@ -88,7 +88,9 @@ export default defineConfig({
   empty by default, and the build fails if it finds a call to any other server. See
   [Privacy](privacy.md).
 - **`manifest`** adds fields to the generated web app manifest. **`storage.prefix`** changes
-  the `app:` prefix of saved keys.
+  the `app:` prefix of saved keys, and **`storage.appName`** the name backups carry (and must
+  carry to import), which defaults to `brand.name`: set it to keep importing backups an app made
+  under another name.
 
 ## Add a plugin
 

@@ -76,6 +76,12 @@ describe('options', () => {
 		expect(() => resolveOptions({ items: [{ ...tool('a'), recents: false }] })).toThrow(
 			/unknown key `recents`/
 		);
+		expect(() => resolveOptions({ items: [tool('a', { width: 'wide' } as never)] })).toThrow(
+			/`width`/
+		);
+		expect(resolveOptions({ items: [tool('a', { width: 'split' })] }).items[0]!.width).toBe(
+			'split'
+		);
 		expect(() => resolveOptions({ tools: [] })).toThrow(/unknown option `tools`/);
 		expect(resolveOptions({ storageKey: 'app:home:shortcuts' }).storageKey).toBe(
 			'app:home:shortcuts'

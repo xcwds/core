@@ -12,11 +12,20 @@ export type UpdateOptions = {
 	checkEveryMs?: number;
 	/** When something a reload would interrupt is running, ask before reloading. Defaults to `true`. */
 	askBeforeReload?: boolean;
+	/**
+	 * The session storage key the old version sets just before it reloads into the new one.
+	 * Defaults to `xcwds:just-updated`; set it to the key an app used before it moved onto
+	 * @xcwds (xcwds.github.io: `app:just-updated`), so its first update still says what's new.
+	 */
+	marker?: string;
 };
 
 export type ResolvedUpdateOptions = Required<UpdateOptions>;
 
-const KEYS = ['checkEveryMs', 'askBeforeReload', 'prefix'];
+/** The default `marker`. */
+export const JUST_UPDATED = 'xcwds:just-updated';
+
+const KEYS = ['checkEveryMs', 'askBeforeReload', 'marker', 'prefix'];
 
 function fail(message: string): never {
 	throw new XcwdsError(codes.CONFIG_INVALID, `${NAME}: ${message}`, { plugin: NAME });
@@ -40,5 +49,8 @@ export function resolveOptions(input: unknown = {}): ResolvedUpdateOptions {
 		fail('`checkEveryMs` must be a whole number of milliseconds, 0 to 2147483647.');
 	const askBeforeReload = options.askBeforeReload ?? true;
 	if (typeof askBeforeReload !== 'boolean') fail('`askBeforeReload` must be true or false.');
-	return { checkEveryMs, askBeforeReload };
+	const marker = options.marker ?? JUST_UPDATED;
+	if (typeof marker !== 'string' || marker.trim() === '')
+		fail('`marker` must be a non-empty string.');
+	return { checkEveryMs, askBeforeReload, marker };
 }

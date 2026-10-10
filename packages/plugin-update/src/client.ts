@@ -12,7 +12,7 @@
  * Imported at prerender too, so it only touches browser globals once the app boots.
  */
 import { definePlugin } from '@xcwds/core';
-import { NAME, SKIP_WAITING, resolveOptions, type UpdateOptions } from './options.js';
+import { JUST_UPDATED, NAME, SKIP_WAITING, resolveOptions, type UpdateOptions } from './options.js';
 
 export type UpdateState = {
 	/** A new version is installed and waiting. */
@@ -40,6 +40,16 @@ export type AppUpdate = {
 	apply(): void;
 	/** Reloads into the version another tab applied (what Reload does). */
 	reload(): void;
+	/**
+	 * Hands a value to the next version: when this page reloads into an update, `value()` (JSON)
+	 * is saved for the new version's `handover()`. Returns a function that stops it.
+	 */
+	carry(name: string, value: () => unknown): () => void;
+	/**
+	 * What the previous version carried over when it reloaded into this one (by name), or null
+	 * when this page load isn't an update. Browser only; it can be read before the app boots.
+	 */
+	handover(): Readonly<Record<string, unknown>> | null;
 };
 
 declare module '@xcwds/core' {
@@ -49,8 +59,10 @@ declare module '@xcwds/core' {
 	}
 }
 
-/** Session storage key the old version sets just before it reloads into the new one. */
-export const JUST_UPDATED = 'xcwds:just-updated';
+export { JUST_UPDATED };
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+	typeof v === 'object' && v !== null && !Array.isArray(v);
 
 export default definePlugin(
 	(app, input: UpdateOptions) => {
@@ -84,22 +96,45 @@ export default definePlugin(
 			return [...new Set([...named, ...given])];
 		}
 
+		const carried = new Map<string, () => unknown>();
+
 		function markJustUpdated() {
+			const values: Record<string, unknown> = {};
+			for (const [name, value] of carried) {
+				try {
+					values[name] = value();
+				} catch (error) {
+					app.reportError(error);
+				}
+			}
 			try {
-				sessionStorage.setItem(JUST_UPDATED, '1');
+				sessionStorage.setItem(options.marker, JSON.stringify(values));
 			} catch {
 				// The update still applies; only the "just updated" note is lost.
 			}
 		}
 
-		function takeJustUpdated(): boolean {
+		/** The marker the previous version left, read (and removed) once. */
+		let note: Record<string, unknown> | null | undefined;
+		function handover(): Record<string, unknown> | null {
+			if (note !== undefined) return note;
+			if (typeof sessionStorage === 'undefined') return null;
+			let text: string | null;
 			try {
-				const marked = sessionStorage.getItem(JUST_UPDATED) !== null;
-				sessionStorage.removeItem(JUST_UPDATED);
-				return marked;
+				text = sessionStorage.getItem(options.marker);
+				sessionStorage.removeItem(options.marker);
 			} catch {
-				return false;
+				return (note = null);
 			}
+			if (text === null) return (note = null);
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(text);
+			} catch {
+				parsed = null;
+			}
+			// Older versions wrote "1": an update with nothing carried over.
+			return (note = Object.freeze(isRecord(parsed) ? { ...parsed } : {}));
 		}
 
 		function offer(worker: ServiceWorker) {
@@ -165,12 +200,19 @@ export default definePlugin(
 			reload() {
 				markJustUpdated();
 				location.reload();
-			}
+			},
+			carry(name, value) {
+				carried.set(name, value);
+				return () => {
+					if (carried.get(name) === value) carried.delete(name);
+				};
+			},
+			handover
 		};
 		app.decorate('update', update);
 
 		app.addHook('onBoot', () => {
-			set({ justUpdated: takeJustUpdated() });
+			set({ justUpdated: handover() !== null });
 			if (!('serviceWorker' in navigator)) return;
 			const container = navigator.serviceWorker;
 			// The first install taking over an uncontrolled tab isn't an update.

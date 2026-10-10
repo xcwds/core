@@ -21,6 +21,8 @@ export type ClientData = {
 	 */
 	base: string;
 	storagePrefix: string;
+	/** `storage.appName`: the app's name in backups. */
+	backupApp: string;
 	routes: RouteInfo[];
 	/** Plugins' `onHead` snippets. */
 	head: string[];

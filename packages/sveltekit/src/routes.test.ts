@@ -49,7 +49,7 @@ describe('the route registry', () => {
 		expect(() => routes.add({ path: '/b?x=1', title: 'B' })).toThrow('query or hash');
 		expect(() => routes.add({ path: '/b', title: ' ' })).toThrow('needs a title');
 		expect(() => routes.add({ path: '/b', title: 'B', width: 'huge' as never })).toThrow(
-			'"narrow" or "wide"'
+			'"narrow", "wide" or "split"'
 		);
 		expect(() => routes.add({ path: '/b', title: 'B', parent: 'x' })).toThrow('parent');
 		expect(() => routes.add({ path: '/b', title: 'B', private: 'yes' as never })).toThrow(

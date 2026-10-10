@@ -20,7 +20,8 @@ import {
 	type StorageAdapter
 } from '@xcwds/core';
 
-export type RouteWidth = 'narrow' | 'wide';
+/** The page container: `page-narrow`, `page-wide`, or `page-split` (narrow until two columns fit). */
+export type RouteWidth = 'narrow' | 'wide' | 'split';
 
 export type RouteDefinition = {
 	/** The page's path, relative to the adding plugin's `prefix` (`/` is the prefix itself). */
@@ -69,7 +70,7 @@ export function stripBase(pathname: string, base: string): string | null {
 	return pathname.startsWith(`${base}/`) ? pathname.slice(base.length) : null;
 }
 
-const WIDTHS: readonly string[] = ['narrow', 'wide'];
+const WIDTHS: readonly string[] = ['narrow', 'wide', 'split'];
 
 function check(route: RouteDefinition, plugin: string): void {
 	const fail = (message: string) => {
@@ -91,7 +92,7 @@ function check(route: RouteDefinition, plugin: string): void {
 	)
 		fail(`the parent of "${route.path}" must be a path starting with "/"`);
 	if (route.width !== undefined && !WIDTHS.includes(route.width))
-		fail(`the width of "${route.path}" must be "narrow" or "wide"`);
+		fail(`the width of "${route.path}" must be "narrow", "wide" or "split"`);
 	if (route.private !== undefined && typeof route.private !== 'boolean')
 		fail(`private of "${route.path}" must be true or false`);
 }
@@ -145,6 +146,8 @@ export type AppSetup = {
 	/** `brand.name`. */
 	name: string;
 	storagePrefix: string | undefined;
+	/** The app's name in backups. Defaults to `name`. */
+	appName?: string;
 	routes: readonly RouteInfo[];
 	/** Each plugin's entry with its options from the config. */
 	plugins: readonly (readonly [Plugin<never>, Record<string, unknown>])[];
@@ -158,7 +161,7 @@ export function setupApp(setup: AppSetup): App {
 	const app = createApp({
 		storage: setup.storage,
 		storagePrefix: setup.storagePrefix,
-		appName: setup.name,
+		appName: setup.appName ?? setup.name,
 		logLevel: setup.logLevel
 	});
 	decorateRoutes(app, setup.routes);

@@ -7,7 +7,13 @@ export type SettingsOptions = {
 	/** The settings page. Defaults to `/settings`. */
 	path?: string;
 	title?: string;
+	/** Shown before the title in the header. Defaults to ⚙️; `''` shows none. */
 	emoji?: string;
+	/**
+	 * The page's width (`@xcwds/sveltekit`'s route widths): `narrow` (the default), or `split`,
+	 * narrow until wide screens, where an app's own settings page can lay out two columns.
+	 */
+	width?: 'narrow' | 'split';
 	/** Titles for settings sections by id (fields' `section`), in the order they show. */
 	sections?: Record<string, string>;
 	/** A link to the app's source code, shown under About. */
@@ -20,6 +26,7 @@ export type ResolvedSettingsOptions = {
 	path: string;
 	title: string;
 	emoji: string;
+	width: 'narrow' | 'split';
 	sections: Record<string, string>;
 	source: string | null;
 	backupName: string;
@@ -45,7 +52,7 @@ export function resolveOptions(input: unknown = {}): ResolvedSettingsOptions {
 	if (typeof input !== 'object' || input === null || Array.isArray(input))
 		fail('options must be an object.');
 	const o = input as Record<string, unknown>;
-	const known = ['path', 'title', 'emoji', 'sections', 'source', 'backupName', 'prefix'];
+	const known = ['path', 'title', 'emoji', 'width', 'sections', 'source', 'backupName', 'prefix'];
 	const unknown = Object.keys(o).filter((k) => !known.includes(k));
 	if (unknown.length) fail(`unknown option ${unknown.map((k) => `\`${k}\``).join(', ')}.`);
 	const path = o.path ?? '/settings';
@@ -54,7 +61,10 @@ export function resolveOptions(input: unknown = {}): ResolvedSettingsOptions {
 	const title = o.title ?? 'Settings';
 	if (!text(title)) fail('`title` must be a non-empty string.');
 	const emoji = o.emoji ?? '⚙️';
-	if (!text(emoji)) fail('`emoji` must be a non-empty string.');
+	if (typeof emoji !== 'string' || (emoji !== '' && !text(emoji)))
+		fail("`emoji` must be a string (`''` for none).");
+	const width = o.width ?? 'narrow';
+	if (width !== 'narrow' && width !== 'split') fail('`width` must be "narrow" or "split".');
 	const sections = o.sections ?? {};
 	if (
 		typeof sections !== 'object' ||
@@ -73,6 +83,7 @@ export function resolveOptions(input: unknown = {}): ResolvedSettingsOptions {
 		path,
 		title,
 		emoji,
+		width,
 		sections: { ...(sections as Record<string, string>) },
 		source,
 		backupName

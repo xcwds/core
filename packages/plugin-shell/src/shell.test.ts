@@ -80,7 +80,7 @@ describe('navigation', () => {
 
 	const routes: Record<
 		string,
-		{ title: string; emoji?: string; parent?: string; width?: 'narrow' | 'wide' }
+		{ title: string; emoji?: string; parent?: string; width?: 'narrow' | 'wide' | 'split' }
 	> = {
 		'/utils/timer': { title: 'Timer', emoji: '⏱️', parent: '/utils', width: 'narrow' },
 		'/guide': { title: 'Kitchen Guide' },

@@ -159,7 +159,8 @@ export const build = definePlugin(
 
 `app.route()` adds the page to the route registry: the shell shows its title and emoji in the
 header and a back arrow to `parent`, and the build prerenders it. `width` names the container
-the page uses (`narrow` for tools, `wide` for lists). `network: false` says the plugin contacts
+the page uses (`narrow` for tools, `wide` for lists, `split` for a page that is narrow until
+wide screens and then lays out two columns). `network: false` says the plugin contacts
 no server; it is the default, but saying it makes the promise visible.
 
 ## 4. What the plugin saves

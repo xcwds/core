@@ -47,7 +47,8 @@ export default defineConfig({
 | ------------ | ----------- | ---------------------------------------------------------------------------- |
 | `path`       | `/settings` | The page (added to the route registry with `title` and `emoji`).             |
 | `title`      | `Settings`  | Its title.                                                                   |
-| `emoji`      | `⚙️`        | Its emoji.                                                                   |
+| `emoji`      | `⚙️`        | Its emoji; `''` shows none.                                                  |
+| `width`      | `narrow`    | `narrow`, or `split` for a page laid out in two columns on wide screens.     |
 | `sections`   | `{}`        | Titles by section id, in the order they show (`{ tools: 'Tool defaults' }`). |
 | `source`     | none        | An `https://` link to the app's source, under About.                         |
 | `backupName` | `backup`    | The backup file's name before its date.                                      |

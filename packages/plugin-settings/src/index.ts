@@ -21,7 +21,12 @@ export default descriptor<SettingsOptions>(NAME);
 export const build = definePlugin(
 	(app, input: SettingsOptions) => {
 		const options = resolveOptions(input);
-		app.route({ path: options.path, title: options.title, emoji: options.emoji, width: 'narrow' });
+		app.route({
+			path: options.path,
+			title: options.title,
+			...(options.emoji ? { emoji: options.emoji } : {}),
+			width: options.width
+		});
 	},
 	{ name: NAME, network: false }
 );

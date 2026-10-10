@@ -1,8 +1,8 @@
 import type { Page } from '@playwright/test';
 
 /**
- * Navigates and waits for the app to hydrate (`<App>` sets `data-hydrated` on `<html>`), so
- * typed input or clicks aren't lost or doubled. `path` is anything `page.goto` takes.
+ * Navigates and waits for the app to hydrate and boot (`<App>` then sets `data-hydrated` on
+ * `<html>`), so typed input or clicks aren't lost or doubled. `path` is anything `page.goto` takes.
  */
 export async function gotoHydrated(
 	page: Page,

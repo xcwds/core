@@ -74,8 +74,8 @@ export const prerender = true;
   `app.worker.skipWaiting()` (`@xcwds/plugin-update` does when the user taps Update).
   A static file with the same path as a generated one (`manifest.webmanifest`, `icons/*`,
   `favicon.ico`) fails the build, since it would replace the generated file.
-- **`<App>`** provides the app, marks `<html data-hydrated>` once mounted (what `gotoHydrated`
-  in `@xcwds/testing` waits for), boots it after mount (`onBoot`, then `onReady`) and turns
+- **`<App>`** provides the app, boots it after mount (`onBoot`, then `onReady`), then marks
+  `<html data-hydrated>` (what `gotoHydrated` in `@xcwds/testing` waits for), and turns
   navigations into `onNavigate` and `afterNavigate`, and page visibility into `onHidden` /
   `onVisible`. Vite HMR closes the old app.
 - **`@xcwds/sveltekit/routes`** is the framework-free core (no Svelte, SvelteKit or Vite

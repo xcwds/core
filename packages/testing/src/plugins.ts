@@ -33,6 +33,8 @@ export type Entry = 'client' | 'worker';
 export type Prepared = {
 	name: string;
 	storagePrefix: string | undefined;
+	/** The name backups carry (`storage.appName`), when it isn't the brand name. */
+	appName: string | undefined;
 	plugins: [Plugin<never>, Record<string, unknown>][];
 	routes: RouteInfo[];
 };
@@ -109,6 +111,7 @@ export async function prepare(
 	return {
 		name: config?.brand.name ?? 'xcwds',
 		storagePrefix: config?.storage.prefix,
+		appName: config?.storage.appName,
 		plugins,
 		routes: routes.list()
 	};

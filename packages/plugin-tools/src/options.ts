@@ -19,6 +19,11 @@ export type Tool = {
 	private?: boolean;
 	/** Adds the tool to the manifest's `shortcuts` (the home-screen icon's long-press menu). */
 	shortcut?: boolean;
+	/**
+	 * The page's container: `narrow` (the default) or `split`, for a tool that uses two columns
+	 * when there's room (`<main class="page-split @container">`).
+	 */
+	width?: 'narrow' | 'split';
 };
 
 export type ToolsOptions = {
@@ -54,7 +59,7 @@ const isPath = (v: unknown): v is string =>
 
 const text = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
 
-const TOOL_KEYS = ['path', 'name', 'emoji', 'blurb', 'private', 'shortcut'];
+const TOOL_KEYS = ['path', 'name', 'emoji', 'blurb', 'private', 'shortcut', 'width'];
 
 /** Checks one tool (from the options or `app.tools.add()`); returns a copy. */
 export function checkTool(input: unknown, where = 'a tool'): Tool {
@@ -75,6 +80,8 @@ export function checkTool(input: unknown, where = 'a tool'): Tool {
 		if (tool[key] !== undefined && typeof tool[key] !== 'boolean')
 			fail(`\`${key}\` of ${at} must be true or false.`);
 	if (tool.private && tool.shortcut) fail(`${at} is private, so it can't be a manifest shortcut.`);
+	if (tool.width !== undefined && tool.width !== 'narrow' && tool.width !== 'split')
+		fail(`\`width\` of ${at} must be "narrow" or "split".`);
 	const out: Tool = {
 		path: tool.path,
 		name: tool.name as string,
@@ -83,6 +90,7 @@ export function checkTool(input: unknown, where = 'a tool'): Tool {
 	};
 	if (tool.private) out.private = true;
 	if (tool.shortcut) out.shortcut = true;
+	if (tool.width === 'split') out.width = 'split';
 	return out;
 }
 

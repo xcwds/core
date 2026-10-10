@@ -297,7 +297,7 @@ describe('buildTestApp', () => {
 		const app = await build(
 			{
 				brand: { name: 'Pocketbox' },
-				storage: { prefix: 'pb:' },
+				storage: { prefix: 'pb:', appName: 'pocketbox.app' },
 				plugins: [timers({ prefix: '/utils/timer', minutes: 3 })]
 			},
 			{ import: importer }
@@ -309,6 +309,7 @@ describe('buildTestApp', () => {
 		});
 		// `prefix` is the kernel's register option, not the plugin's.
 		expect(seen).toEqual([{ minutes: 3 }, 'pb:fake:x']);
+		expect(app.storage.exportData().app).toBe('pocketbox.app');
 	});
 
 	it('explains how to fix a descriptor that fails to import', async () => {

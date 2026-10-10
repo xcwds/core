@@ -45,10 +45,13 @@ export default defineConfig({
 
 ## What it does
 
-- A fresh install (or cleared data) saves the newest id when the app first starts, so it
-  badges nothing. Later versions badge entries with a higher id until What's new shows them.
-- After an update (the marker from `@xcwds/plugin-update`) with entries the user hasn't seen,
-  `app.toast` (from `@xcwds/plugin-shell`) says "App updated." with a link to What's new.
+- A fresh install (or cleared data) badges nothing and saves nothing: until What's new is opened,
+  the newest entry counts as seen. After an update, entries newer than the ones the old version
+  had are badged until What's new shows them. The old version carries its newest id across with
+  `@xcwds/plugin-update`'s handover; when it carried none (it predates this plugin), only the
+  newest entry counts as new.
+- After an update, `app.toast` (from `@xcwds/plugin-shell`) says "App updated." with a link to
+  What's new when there is something new, and "App updated to the latest version." otherwise.
 - With `@xcwds/plugin-settings`, What's new is a section of the settings page (after About), at
   `#whats-new`. Without it, place `<WhatsNew />` from `@xcwds/plugin-changelog/WhatsNew.svelte`
   inside `<App>` yourself.

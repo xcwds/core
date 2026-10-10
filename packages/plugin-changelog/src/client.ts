@@ -1,9 +1,10 @@
 /**
  * The page entry, ported from xcwds.github.io's `changelog.ts` and the What's new section in
- * Settings. It saves the newest entry the user has seen (`app:changelog:seen`): a fresh install
- * saves the newest one straight away, so it badges nothing. After an update (the marker from
- * `@xcwds/plugin-update`) with notes the user hasn't seen, a toast links to What's new, which
- * `@xcwds/plugin-settings` shows on its page.
+ * Settings. It saves the newest entry the user has seen (`app:changelog:seen`). A fresh install
+ * saves nothing and badges nothing: everything so far counts as seen. Each version hands its
+ * newest entry to the next through `@xcwds/plugin-update` (`carry`), so after an update the
+ * entries the user hasn't seen get a badge and a toast links to What's new, which
+ * `@xcwds/plugin-settings` shows on its page; with nothing new, the toast just says it updated.
  *
  * Imported at prerender too, so it only touches browser globals once the app boots.
  */
@@ -23,12 +24,18 @@ type SettingsPageLike = {
 	add(component: Component, options?: { order?: number }): () => void;
 };
 /** What this plugin uses of `app.update` (from `@xcwds/plugin-update`, if present). */
-type UpdateLike = { readonly state: { justUpdated: boolean } };
+type UpdateLike = {
+	carry(name: string, value: () => unknown): () => void;
+	handover(): Readonly<Record<string, unknown>> | null;
+};
 /** What this plugin uses of `app.toast` (from `@xcwds/plugin-shell`, if present). */
 type ToastLike = (
 	message: string,
 	options?: { action?: { label: string; path: string; hash?: string } }
 ) => void;
+
+/** The name this plugin carries its newest entry under (`app.update.carry`). */
+const CARRIED = 'changelog';
 
 /** The element id of the What's new section, for links to it. */
 export const SECTION_ID = 'whats-new';
@@ -66,7 +73,7 @@ export default definePlugin(
 			parse: parseSeen,
 			...(options.storageKey ? { key: options.storageKey } : {})
 		});
-		// Until boot reads the saved value, nothing is new (so prerendered pages badge nothing).
+		// Until the browser reads the saved value, nothing is new (so prerendered pages badge nothing).
 		let seen = latest;
 		const listeners = new Set<(seen: number) => void>();
 		const set = (next: number) => {
@@ -74,26 +81,45 @@ export default definePlugin(
 			seen = next;
 			for (const listener of listeners) listener(seen);
 		};
+		/** Read on the first use in the browser: boot, or a What's new that mounts before it. */
+		let started = false;
+		/** On the first load after an update: whether it brought entries the user hadn't seen. */
+		let news: boolean | null = null;
+		const update = () => (app as { update?: UpdateLike }).update;
 		/**
-		 * Reads the saved marker. Nothing saved means everything so far counts as seen: a fresh
-		 * install saves that on boot (so a later update has something to compare with), but a
-		 * clear doesn't, so clearing data leaves it cleared until the next start.
+		 * Reads the saved marker. Nothing saved means everything so far counts as seen, and a
+		 * fresh install saves nothing. After an update, what the previous version had becomes the
+		 * marker, so the entries since then show as new.
 		 */
-		const load = (onBoot: boolean) => {
+		function start() {
+			if (started) return;
+			started = true;
 			const saved = app.storage.read(entry);
-			if (saved !== undefined) return set(saved);
-			if (onBoot && latest > 0) app.storage.write(entry, latest);
-			set(latest);
-		};
+			const handed = update()?.handover?.() ?? null;
+			if (!handed) return set(saved ?? latest);
+			// A version that carried nothing (older than this plugin): the newest entry is new.
+			const previous = Number.isSafeInteger(handed[CARRIED])
+				? (handed[CARRIED] as number)
+				: latest - 1;
+			const since = Math.min(previous, saved ?? previous);
+			news = since < latest;
+			if (saved === undefined && news) app.storage.write(entry, since);
+			set(saved ?? (news ? since : latest));
+		}
+		const reload = () => set(app.storage.read(entry) ?? latest);
 		let booted = false;
 		const stops: (() => void)[] = [];
 
 		app.decorate('changelog', {
 			entries: options.entries.slice(0, options.show),
 			latest,
-			seen: () => seen,
+			seen: () => {
+				start();
+				return seen;
+			},
 			markSeen() {
-				if (!booted || seen >= latest) return;
+				start();
+				if (seen >= latest) return;
 				app.storage.write(entry, latest);
 				set(latest);
 			},
@@ -106,10 +132,12 @@ export default definePlugin(
 
 		app.addHook('onBoot', () => {
 			booted = true;
-			load(true);
+			start();
+			const carry = update()?.carry;
+			if (carry) stops.push(carry(CARRIED, () => latest));
 			stops.push(
 				app.storage.onChange((key) => {
-					if (key === null || key === entry.key) load(false);
+					if (key === null || key === entry.key) reload();
 				})
 			);
 			// With @xcwds/plugin-settings, What's new is a section of its page. Loaded lazily: the
@@ -121,10 +149,10 @@ export default definePlugin(
 				});
 		});
 		app.addHook('onReady', () => {
-			const update = (app as { update?: UpdateLike }).update;
 			const toast = (app as { toast?: ToastLike }).toast;
-			if (!update?.state.justUpdated || !toast || seen >= latest) return;
+			if (news === null || !toast) return;
 			const page = (app as { settingsPage?: SettingsPageLike }).settingsPage;
+			if (!news) return toast('App updated to the latest version.');
 			toast(
 				'App updated.',
 				page

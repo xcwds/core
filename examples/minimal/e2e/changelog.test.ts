@@ -1,6 +1,6 @@
 // @xcwds/plugin-changelog (#19) in examples/minimal, ported from xcwds.github.io's What's new
 // update test: after an update, a toast links to What's new, which badges only the entries the
-// user hadn't seen; a fresh install badges none.
+// user hadn't seen; a fresh install badges none and saves nothing.
 import { expect, test, type Page } from '@playwright/test';
 import {
 	gotoHydrated,
@@ -40,7 +40,8 @@ for (const { name, dir, base } of targets) {
 				changelog[0]!.items[0]!
 			);
 			await expect(page.getByTestId('whats-new-badge')).toHaveCount(0);
-			await expect.poll(() => seen(page)).toBe(String(latest));
+			// Nothing saved means everything so far counts as seen, so a fresh install saves nothing.
+			expect(await seen(page)).toBeNull();
 		});
 
 		test("after an update, the toast links to What's new with only the newer entries", async ({
@@ -48,8 +49,7 @@ for (const { name, dir, base } of targets) {
 		}) => {
 			await gotoHydrated(page, url('/'));
 			await waitForServiceWorker(page);
-			await expect.poll(() => seen(page)).toBe(String(latest));
-			// As if the version running now had one entry fewer.
+			// As if the user last saw one entry fewer.
 			await page.evaluate(
 				(id) => localStorage.setItem('app:changelog:seen', JSON.stringify(id)),
 				latest - 1
@@ -86,10 +86,9 @@ for (const { name, dir, base } of targets) {
 			await expect(page.getByTestId('whats-new-badge')).toHaveCount(0);
 		});
 
-		test('no toast after an update without new entries', async ({ page }) => {
+		test('after an update without new entries, the toast just says so', async ({ page }) => {
 			await gotoHydrated(page, url('/'));
 			await waitForServiceWorker(page);
-			await expect.poll(() => seen(page)).toBe(String(latest));
 			await deployment.deployNewVersion('nothing-new');
 			await expect(async () => {
 				await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
@@ -102,8 +101,9 @@ for (const { name, dir, base } of targets) {
 				banner(page).getByRole('button', { name: 'Update', exact: true }).click()
 			]);
 			await expect(page.locator('html')).toHaveAttribute('data-hello', 'hi');
-			await page.waitForTimeout(500);
-			await expect(page.getByTestId('toast')).toHaveCount(0);
+			await expect(page.getByTestId('toast')).toHaveText('App updated to the latest version.');
+			await expect(page.getByTestId('toast').getByRole('link')).toHaveCount(0);
+			expect(await seen(page)).toBeNull();
 		});
 	});
 }

@@ -135,7 +135,7 @@ export async function generate({
 		default: Record<string, unknown>[];
 	};
 
-	const app = createApp({ storage: memoryStorage(), appName: config.brand.name });
+	const app = createApp({ storage: memoryStorage(), appName: config.storage.appName });
 	const routes = decorateRoutes(app);
 	plugins.forEach((p, i) => {
 		const plugin = buildPlugin(p.name, entries.default[i]!);

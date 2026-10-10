@@ -55,6 +55,9 @@ for (const { name, dir, base } of targets) {
 				await page.clock.fastForward('01:31');
 				const alert = page.getByTestId('timer-alert');
 				await expect(alert).toHaveText(/Pasta is done/);
+				// It keeps ringing through ticks without re-rendering itself into a loop.
+				await page.clock.runFor(2000);
+				await expect(alert).toHaveText(/Pasta is done/);
 				await alert.getByRole('button', { name: '+1 min' }).click();
 				await expect(alert).toHaveCount(0);
 				await page.clock.fastForward('01:01');
