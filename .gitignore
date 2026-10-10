@@ -15,3 +15,5 @@ coverage
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 playwright.local.config.ts
+packages/create/src/versions.ts
+examples/starter
