@@ -7,6 +7,17 @@ plugin system and extracted from [xcwds.github.io](https://github.com/xcwds/xcwd
 Work in progress; nothing is published to npm yet. The plan is [#1](https://github.com/xcwds/core/issues/1)
 and the design is [RFC 0001](docs/rfc/0001-architecture.md).
 
+## Docs
+
+- [Getting started](docs/getting-started.md): from nothing to an app on your phone
+- [Concepts](docs/concepts.md): plugins, hooks, decorators, saved data, updates and privacy
+- [Writing a plugin](docs/plugin-guide.md): build, test and use a plugin of your own
+- [Ecosystem](docs/ecosystem.md): every plugin
+- [Privacy](docs/privacy.md): how the framework keeps apps from phoning home
+
+The same pages, with a reference for every package, are a docs site built with @xcwds itself
+(`site/`), deployed to GitHub Pages from `main`.
+
 ## Packages
 
 | Package                                  | What it is                                                                |
@@ -21,8 +32,9 @@ and the design is [RFC 0001](docs/rfc/0001-architecture.md).
 - `packages/*`: published packages, all under the `@xcwds` npm scope
 - `examples/minimal`: the smallest working app, used by the e2e tests
 - `examples/plugin-hello`: a tiny plugin with every kind of entry, used by `examples/minimal`
-- `docs/rfc`: design decisions
-- [`docs/privacy.md`](docs/privacy.md): how the framework keeps apps from phoning home
+- `examples/plugin-tally`: the plugin [Writing a plugin](docs/plugin-guide.md) builds
+- `docs/`: the guides, and design decisions in `docs/rfc`
+- `site/`: the docs site, which renders `docs/` and each package's README
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to build and test.
 

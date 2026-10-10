@@ -1,0 +1,4 @@
+/* Managed by `xcwds add` from the plugins in package.json: edits here are overwritten. */
+@import '@xcwds/plugin-theme/tailwind.css';
+@import '@xcwds/plugin-shell/styles.css';
+@import '@xcwds/plugin-settings/styles.css';

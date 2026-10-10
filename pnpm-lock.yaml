@@ -140,6 +140,43 @@ importers:
         specifier: ^5.45.6
         version: 5.57.2(@typescript-eslint/types@8.71.1)
 
+  examples/plugin-tally:
+    dependencies:
+      '@xcwds/core':
+        specifier: workspace:^
+        version: link:../../packages/core
+    devDependencies:
+      '@sveltejs/kit':
+        specifier: ^2.49.1
+        version: 2.70.3(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.57.2(@typescript-eslint/types@8.71.1))(vite@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0)))(svelte@5.57.2(@typescript-eslint/types@8.71.1))(typescript@5.9.3)(vite@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0))
+      '@sveltejs/package':
+        specifier: ^2.5.8
+        version: 2.5.8(svelte@5.57.2(@typescript-eslint/types@8.71.1))(typescript@5.9.3)
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.1
+        version: 6.2.4(svelte@5.57.2(@typescript-eslint/types@8.71.1))(vite@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0))
+      '@xcwds/sveltekit':
+        specifier: workspace:^
+        version: link:../../packages/sveltekit
+      '@xcwds/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      svelte:
+        specifier: ^5.45.6
+        version: 5.57.2(@typescript-eslint/types@8.71.1)
+      svelte-check:
+        specifier: ^4.3.4
+        version: 4.7.6(picomatch@4.0.7)(svelte@5.57.2(@typescript-eslint/types@8.71.1))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.2.6
+        version: 7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0)
+      vitest:
+        specifier: ^4.0.15
+        version: 4.1.11(@types/node@24.19.1)(vite@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0))
+
   packages/core:
     devDependencies:
       '@resvg/resvg-js':
@@ -601,6 +638,88 @@ importers:
       vitest:
         specifier: ^4.0.15
         version: 4.1.11(@types/node@24.19.1)(vite@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0))
+
+  site:
+    dependencies:
+      '@xcwds-site/plugin-pages':
+        specifier: workspace:*
+        version: link:plugin-pages
+      '@xcwds/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@xcwds/plugin-install':
+        specifier: workspace:*
+        version: link:../packages/plugin-install
+      '@xcwds/plugin-offline':
+        specifier: workspace:*
+        version: link:../packages/plugin-offline
+      '@xcwds/plugin-settings':
+        specifier: workspace:*
+        version: link:../packages/plugin-settings
+      '@xcwds/plugin-shell':
+        specifier: workspace:*
+        version: link:../packages/plugin-shell
+      '@xcwds/plugin-theme':
+        specifier: workspace:*
+        version: link:../packages/plugin-theme
+      '@xcwds/plugin-update':
+        specifier: workspace:*
+        version: link:../packages/plugin-update
+      '@xcwds/sveltekit':
+        specifier: workspace:*
+        version: link:../packages/sveltekit
+      xcwds-plugin-tally:
+        specifier: workspace:*
+        version: link:../examples/plugin-tally
+    devDependencies:
+      '@playwright/test':
+        specifier: 1.57.0
+        version: 1.57.0
+      '@resvg/resvg-js':
+        specifier: ^2.6.2
+        version: 2.6.2
+      '@sveltejs/kit':
+        specifier: ^2.49.1
+        version: 2.70.3(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.57.2(@typescript-eslint/types@8.71.1))(vite@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0)))(svelte@5.57.2(@typescript-eslint/types@8.71.1))(typescript@5.9.3)(vite@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0))
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.1
+        version: 6.2.4(svelte@5.57.2(@typescript-eslint/types@8.71.1))(vite@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0))
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0))
+      '@types/node':
+        specifier: ^24
+        version: 24.19.1
+      '@xcwds/testing':
+        specifier: workspace:*
+        version: link:../packages/testing
+      marked:
+        specifier: ^18.1.0
+        version: 18.1.0
+      svelte:
+        specifier: ^5.45.6
+        version: 5.57.2(@typescript-eslint/types@8.71.1)
+      svelte-check:
+        specifier: ^4.3.4
+        version: 4.7.6(picomatch@4.0.7)(svelte@5.57.2(@typescript-eslint/types@8.71.1))(typescript@5.9.3)
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.2.6
+        version: 7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0)
+      vitest:
+        specifier: ^4.0.15
+        version: 4.1.11(@types/node@24.19.1)(vite@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(lightningcss@1.32.0))
+
+  site/plugin-pages:
+    dependencies:
+      '@xcwds/core':
+        specifier: workspace:^
+        version: link:../../packages/core
 
 packages:
 
@@ -1941,6 +2060,11 @@ packages:
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
+
+  marked@18.1.0:
+    resolution: {integrity: sha512-PamYXWWWg2nboG3oX5Ffzpy3EFZROqZJK9hSlMmUnekp7TxPs5DcT95vwd46m73/exfKCRVMtgXoPMI4FEJL6w==}
+    engines: {node: '>= 20'}
+    hasBin: true
 
   merge2@1.4.1:
     resolution: {integrity: sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==}
@@ -3711,6 +3835,8 @@ snapshots:
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  marked@18.1.0: {}
 
   merge2@1.4.1: {}
 

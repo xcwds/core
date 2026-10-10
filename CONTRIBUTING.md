@@ -8,7 +8,7 @@ pnpm build          # build the packages (examples import their output)
 pnpm check          # type check every package and example
 pnpm lint           # prettier + eslint
 pnpm test:unit --run
-pnpm test:e2e       # builds examples/minimal at the root and under /sub, then runs Playwright
+pnpm test:e2e       # builds examples/minimal and site/ at the root and under a base path, then runs Playwright
 pnpm test:starter   # generates an app with npm create @xcwds into examples/starter and tests it
 ```
 
@@ -22,4 +22,10 @@ anything a generated app uses, including `packages/create`).
   Pages-like server, the tap-target audit) and block service workers unless a test opts in with
   `test.use({ serviceWorkers: 'allow' })`.
 - Add a changeset (`pnpm changeset`) to PRs that change a package.
+- Docs live in `docs/` and each package's README; `site/` renders them (`pnpm --filter
+@xcwds/site dev`). Links between them are relative file links, which work on GitHub and the
+  site alike. The plugin guide shows `examples/plugin-tally`'s files in full: when you change
+  one, copy it into `docs/plugin-guide.md` (a unit test compares them). Reference pages list
+  each plugin's options, decorators and settings from its types, so document those with doc
+  comments.
 - Design changes go through an RFC in `docs/rfc/`.

@@ -7,14 +7,14 @@
 		"node": ">=22.18"
 	},
 	"scripts": {
-		"build": "pnpm --filter \"./packages/*\" build",
+		"build": "pnpm --filter \"./packages/*\" --filter ./examples/plugin-tally build",
 		"check": "pnpm -r check",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"test:unit": "vitest",
-		"test:e2e": "pnpm --filter \"./examples/*\" --filter \"!./examples/starter\" test:e2e",
+		"test:e2e": "pnpm --filter \"./examples/*\" --filter \"!./examples/starter\" --filter ./site test:e2e",
 		"test": "pnpm test:unit --run && pnpm test:e2e",
-		"publint": "pnpm --filter \"./packages/*\" publint",
+		"publint": "pnpm --filter \"./packages/*\" --filter ./examples/plugin-tally publint",
 		"changeset": "changeset",
 		"test:starter": "node packages/create/scripts/test-starter.js"
 	},
