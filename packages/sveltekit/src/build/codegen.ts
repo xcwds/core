@@ -38,7 +38,11 @@ export function clientModule(state: BuildState): string {
 		storagePrefix: state.config.storage.prefix,
 		routes: state.routes,
 		head: state.head,
-		tags: headTags(state.config, { base: state.base })
+		tags: headTags(state.config, { base: state.base }),
+		privacy: {
+			plugins: state.plugins.map(({ name, network }) => ({ name, network })),
+			allowOrigins: state.config.privacy.allowOrigins
+		}
 	};
 	const { lines, pairs } = imports(state, 'client');
 	return `${lines}export const plugins = ${pairs};\nexport const data = ${json(data)};\n`;

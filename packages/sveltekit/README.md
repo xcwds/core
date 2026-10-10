@@ -53,8 +53,10 @@ export const prerender = true;
   (`onConfig`, `onManifest`, `onHead`, `onWorker`, `onPrerender`), and writes `.xcwds/worker.js`.
   It sets adapter-static with a `404.html` fallback (unless `kit.adapter` is set), prerender
   `entries` for every registered route and `onPrerender` path, and a hash-mode CSP that allows
-  only the app's origin (plus `privacy.allowOrigins` for `connect-src`); your `kit.csp`
-  directives are added to it.
+  only the app's origin plus the origins plugins declare (`network` metadata) and
+  `privacy.allowOrigins` lists; your `kit.csp` directives are added to it. Its adapter wrapper
+  scans the built site and fails the build on any other origin it finds
+  ([docs/privacy.md](../../docs/privacy.md)).
 - **`xcwds()`** serves `virtual:xcwds/client` (each plugin's `./client` entry, routes and head
   data) to the page bundle, and emits `manifest.webmanifest` and the icons rendered from
   `brand.icon` (with `@xcwds/core/build`, which needs `@resvg/resvg-js`).

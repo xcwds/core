@@ -5,6 +5,7 @@
  */
 import { XcwdsError, codes } from './errors.js';
 import { isRecord, notJson } from './json.js';
+import { isOrigin } from './privacy.js';
 
 export type Descriptor<Options = Record<string, unknown>> = {
 	/** The plugin's package name; its `./client` and `./worker` exports are imported. */
@@ -47,7 +48,10 @@ export type XcwdsConfig = {
 	/** Extra Web App Manifest fields, merged over the generated ones. */
 	manifest?: Record<string, unknown>;
 	storage?: { prefix?: string };
-	/** Origins plugins may contact (#22). Empty: none. */
+	/**
+	 * Origins the app may contact besides those its plugins declare (#22): `https:` or `wss:`.
+	 * Empty: none. The build fails on any other origin it finds, and the CSP blocks the rest.
+	 */
 	privacy?: { allowOrigins?: string[] };
 	plugins?: Descriptor<object>[];
 };
@@ -178,15 +182,9 @@ export function validateConfig(
 			else
 				input.privacy.allowOrigins.forEach((o, i) => {
 					const path = `privacy.allowOrigins[${i}]`;
-					let url: URL | undefined;
-					try {
-						url = typeof o === 'string' ? new URL(o) : undefined;
-					} catch {
-						url = undefined;
-					}
-					if (!url || url.origin !== o || url.protocol !== 'https:')
-						issue(path, 'must be an https origin like "https://example.com"');
-					else allowOrigins.push(o);
+					if (!isOrigin(o))
+						issue(path, 'must be an https or wss origin like "https://example.com"');
+					else if (!allowOrigins.includes(o)) allowOrigins.push(o);
 				});
 		}
 	}

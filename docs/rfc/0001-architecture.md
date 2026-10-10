@@ -200,6 +200,21 @@ Apps on `user.github.io/repo` live under SvelteKit's `paths.base`. The manifest'
 and `start_url`, the worker's scope and precache list, share URLs and route registry paths all
 include it. The kernel stores paths without the base; the integration adds it at the edges.
 
+### 10. "Never phone home" is checked at build time and enforced by the CSP
+
+**Decision.** Plugins declare `network: false | { origins, reason }` (default `false`), read
+from their build entry. After SvelteKit builds the site, `withXcwds()`'s adapter wrapper scans
+SvelteKit's output (page bundle, service worker, static files, prerendered pages) for URLs on
+other origins where they load or send something, and fails the build on any origin that no
+plugin declares and `privacy.allowOrigins` doesn't list, naming the plugin whose package mentions
+it. Scripts never load from other origins. The hash-mode CSP (decision 4) allows the declared
+origins in `connect-src` (and `https:` ones for images, fonts, media and styles) and nothing else,
+which is the real enforcement, since a static scan can't see URLs built at runtime. The settings
+page lists the declarations. See [docs/privacy.md](../privacy.md).
+
+The scan runs in the adapter because it is the first point where the worker (built in its own
+Vite build, decision 3) and the prerendered pages both exist.
+
 ## Hook families
 
 Defined in #5; listed here so the decisions above have names to point at.

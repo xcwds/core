@@ -3,8 +3,9 @@
  * turns SvelteKit's navigation and page-visibility events into runtime hooks (RFC 0001,
  * decision 7).
  */
+import { dev } from '$app/environment';
 import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
-import type { App, Route } from '@xcwds/core';
+import { savedDataInQuery, type App, type Route } from '@xcwds/core';
 import { getContext, onMount, setContext } from 'svelte';
 import { data } from 'virtual:xcwds/client';
 import { askGuards, decide, normalizePath, routeOf, type GuardDecision } from './routes.js';
@@ -56,6 +57,23 @@ function key(url: URL): string {
 /** Whether two URLs are the same page and query (a hash change doesn't count as leaving). */
 function sameDocument(a: Location | URL, b: URL): boolean {
 	return a.origin === b.origin && a.pathname === b.pathname && a.search === b.search;
+}
+
+/**
+ * In development, warns when a page's query string carries saved data (#22): queries reach the
+ * server on every request, so user data belongs in the fragment (`#url=...`).
+ */
+function checkQuery(app: App, url: URL) {
+	if (!dev || !url.search) return;
+	const saved = app.storage
+		.groups()
+		.flatMap((g) => g.entries)
+		.map((e) => app.storage.read(e));
+	const names = savedDataInQuery(url, saved);
+	if (names.length)
+		app.log.warn(
+			`The query parameter${names.length > 1 ? 's' : ''} ${names.join(', ')} of ${url.pathname} carr${names.length > 1 ? 'y' : 'ies'} saved data, which reaches the server with every request. Put it in the fragment (#...) instead.`
+		);
 }
 
 /** Sets up the app for `<App>`. Call during component initialisation. */
@@ -135,7 +153,12 @@ export function startApp(): void {
 
 	afterNavigate((nav) => {
 		const to = nav.to && route(nav.to.url);
-		if (to) void ready.then((a) => a?.hooks.run('afterNavigate', [to], { path: to.path }));
+		if (!to) return;
+		const url = nav.to!.url;
+		void ready.then((a) => {
+			if (a) checkQuery(a, url);
+			return a?.hooks.run('afterNavigate', [to], { path: to.path });
+		});
 	});
 
 	onMount(() => {

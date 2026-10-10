@@ -3,12 +3,13 @@
  * whenever `svelte.config.js` loads, which happens before `svelte-kit sync`, `svelte-check`,
  * `vite dev` and `vite build`, so the generated files always exist (RFC 0001, decision 3).
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
 	XcwdsError,
+	checkNetwork,
 	codes,
 	createApp,
 	createManifest,
@@ -43,11 +44,14 @@ export function findConfig(root: string): string {
 	);
 }
 
-/** A plugin package's `package.json`, found the way Node finds packages from the app's root. */
-function findPackage(root: string, name: string): { exports: unknown } {
+/** A plugin package's `package.json` and directory, found the way Node finds packages. */
+function findPackage(root: string, name: string): { exports: unknown; dir: string } {
 	for (let dir = root; ; dir = dirname(dir)) {
 		const file = join(dir, 'node_modules', name, 'package.json');
-		if (existsSync(file)) return JSON.parse(readFileSync(file, 'utf8')) as { exports: unknown };
+		if (existsSync(file)) {
+			const { exports } = JSON.parse(readFileSync(file, 'utf8')) as { exports: unknown };
+			return { exports, dir: realpathSync(dirname(file)) };
+		}
 		if (dirname(dir) === dir) break;
 	}
 	throw new XcwdsError(
@@ -113,12 +117,14 @@ export async function generate({
 	await writeFile(join(dir, '.gitignore'), '*\n');
 
 	const plugins: PluginInfo[] = config.plugins.map(({ name, options }) => {
-		const { exports } = findPackage(root, name);
+		const { exports, dir } = findPackage(root, name);
 		return {
 			name,
 			options,
+			dir,
 			client: hasExport(exports, './client'),
-			worker: hasExport(exports, './worker')
+			worker: hasExport(exports, './worker'),
+			network: false
 		};
 	});
 
@@ -133,7 +139,10 @@ export async function generate({
 	const routes = decorateRoutes(app);
 	plugins.forEach((p, i) => {
 		const plugin = buildPlugin(p.name, entries.default[i]!);
-		if (plugin) app.register(plugin, { ...p.options } as never);
+		if (!plugin) return;
+		// The build entry declares the package's network use (#22); the kernel checks it on load.
+		p.network = checkNetwork(pluginMeta(plugin).network, p.name);
+		app.register(plugin, { ...p.options } as never);
 	});
 	await app.ready();
 

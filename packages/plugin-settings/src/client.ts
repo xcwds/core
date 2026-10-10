@@ -13,7 +13,10 @@ import {
 	type SettingsOptions
 } from './options.js';
 
-/** A section a plugin adds, in `order`: fields are at 0, Your data at 100 and About at 200. */
+/**
+ * A section a plugin adds, in `order`: fields are at 0, Your data at 100, Privacy at 150 and About
+ * at 200.
+ */
 export type PageSection = {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	component: Component<any>;
