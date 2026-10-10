@@ -1,6 +1,6 @@
 # @xcwds/sveltekit
 
-Binds the [@xcwds](https://github.com/xcwds/core) kernel to SvelteKit: config loading, plugin
+Binds the [@xcwds](https://github.com/xcwds/xcwds) kernel to SvelteKit: config loading, plugin
 entries for the page and the service worker, the pre-paint script, the manifest and icons, and
 Svelte 5 helpers. Design: [RFC 0001](../../docs/rfc/0001-architecture.md), decisions 1 to 4 and 9.
 

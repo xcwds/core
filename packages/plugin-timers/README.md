@@ -1,6 +1,6 @@
 # @xcwds/plugin-timers
 
-Timers for an [@xcwds](https://github.com/xcwds/core) app, extracted from xcwds.github.io's
+Timers for an [@xcwds](https://github.com/xcwds/xcwds) app, extracted from xcwds.github.io's
 cooking and coffee timers. They count against wall-clock end times, so they stay right when a
 phone suspends the tab, and they're saved, so a reload resumes them. The app owns them, not a
 page: on every page a finished timer rings, a running one keeps the screen awake, and an app

@@ -1,6 +1,6 @@
 # @xcwds/plugin-settings
 
-The settings page for an [@xcwds](https://github.com/xcwds/core) app, generalised from
+The settings page for an [@xcwds](https://github.com/xcwds/xcwds) app, generalised from
 xcwds.github.io's `/settings`. It shows:
 
 - every plugin's settings, grouped by section, with built-in controls;

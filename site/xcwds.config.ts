@@ -41,7 +41,7 @@ export default defineConfig({
 		update(),
 		install(),
 		settings({
-			source: 'https://github.com/xcwds/core',
+			source: 'https://github.com/xcwds/xcwds',
 			backupName: 'xcwds-docs-backup',
 			sections: { tally: 'Tally' }
 		})

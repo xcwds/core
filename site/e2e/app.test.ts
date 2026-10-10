@@ -9,16 +9,16 @@ import {
 import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// The build, served the way GitHub Pages serves it, at the root and under /core (as on
-// xcwds.github.io/core).
+// The build, served the way GitHub Pages serves it, at the root and under /xcwds (as on
+// xcwds.github.io/xcwds).
 const build = fileURLToPath(new URL('../build', import.meta.url));
 let server: StaticServer;
 let sub: StaticServer;
 const url = (path: string) => server.url(path);
 test.beforeAll(async () => {
 	server = await serveStatic(build);
-	sub = await serveStatic(fileURLToPath(new URL('../build-core', import.meta.url)), {
-		base: '/core'
+	sub = await serveStatic(fileURLToPath(new URL('../build-base', import.meta.url)), {
+		base: '/xcwds'
 	});
 });
 test.afterAll(async () => {
@@ -59,7 +59,7 @@ test('on a computer, docs pages list their sections, with tap targets big enough
 test('links between pages stay in the app, under a base path too', async ({ page }) => {
 	for (const [serve, prefix] of [
 		[url, ''],
-		[(path: string) => sub.url(path), '/core']
+		[(path: string) => sub.url(path), '/xcwds']
 	] as const) {
 		await gotoHydrated(page, serve('/'));
 		await page.getByRole('link', { name: /Get started/ }).click();

@@ -6,7 +6,7 @@ an existing app; any other plugin installs like an npm package (see
 
 ## First-party plugins
 
-Published as `@xcwds/plugin-<name>` from [xcwds/core](https://github.com/xcwds/core).
+Published as `@xcwds/plugin-<name>` from [xcwds/xcwds](https://github.com/xcwds/xcwds).
 
 | Plugin                                                    | What it adds                                                                                     | Contacts a server |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------- |

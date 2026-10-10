@@ -1,6 +1,6 @@
 # @xcwds/create
 
-Makes a new installable, offline-first PWA on [@xcwds](https://github.com/xcwds/core), from
+Makes a new installable, offline-first PWA on [@xcwds](https://github.com/xcwds/xcwds), from
 nothing to an app on your phone:
 
 ```sh

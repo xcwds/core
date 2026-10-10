@@ -1,7 +1,7 @@
 # RFC 0001: Architecture
 
 - Status: accepted
-- Issue: [#2](https://github.com/xcwds/core/issues/2)
+- Issue: [#2](https://github.com/xcwds/xcwds/issues/2)
 - Spikes: [`examples/minimal`](../../examples/minimal) and
   [`examples/plugin-hello`](../../examples/plugin-hello), now built on `@xcwds/sveltekit` (#10)
   and tested by [`e2e/app.test.ts`](../../examples/minimal/e2e/app.test.ts), at the root and

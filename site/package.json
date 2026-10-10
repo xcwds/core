@@ -10,7 +10,7 @@
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
 		"test:e2e": "vite build && pnpm build:base && playwright test",
-		"build:base": "BASE_PATH=/core BUILD_DIR=build-core vite build"
+		"build:base": "BASE_PATH=/xcwds BUILD_DIR=build-base vite build"
 	},
 	"dependencies": {
 		"@xcwds-site/plugin-pages": "workspace:*",

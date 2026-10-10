@@ -1,6 +1,6 @@
 # @xcwds/core
 
-The kernel of [@xcwds](https://github.com/xcwds/core): a Fastify-style plugin system for private,
+The kernel of [@xcwds](https://github.com/xcwds/xcwds): a Fastify-style plugin system for private,
 offline-first PWAs. It has no UI and no framework dependency; `@xcwds/sveltekit` binds it to
 SvelteKit. Design: [RFC 0001](../../docs/rfc/0001-architecture.md).
 
