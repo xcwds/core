@@ -585,7 +585,9 @@ ${setup}
     if: github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
+    # Job permissions replace the workflow's: checkout still needs to read the repository.
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:

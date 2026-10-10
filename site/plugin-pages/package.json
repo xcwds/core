@@ -1,0 +1,16 @@
+{
+	"name": "@xcwds-site/plugin-pages",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Adds the docs site's Markdown pages to the route registry, so the shell titles them and SvelteKit prerenders them.",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./index.d.ts",
+			"default": "./index.js"
+		}
+	},
+	"dependencies": {
+		"@xcwds/core": "workspace:^"
+	}
+}

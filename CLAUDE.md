@@ -20,3 +20,8 @@ pnpm monorepo: `packages/*` are published under the `@xcwds` scope (all `"privat
   Review it adversarially, post the review on GitHub, fix and re-review (at most 3 rounds), then
   squash-merge once CI is green, unless the user says not to.
 - Add a changeset for changes to a package.
+- Docs: guides in `docs/`, package READMEs, rendered by the docs site in `site/` (deployed by
+  `.github/workflows/docs.yml` after CI passes on `main`). Keep links relative file links. When a
+  file in `examples/plugin-tally` changes, copy it into `docs/plugin-guide.md` (a site unit test
+  compares them); new first-party plugins go in `docs/ecosystem.md` and `PACKAGES` in
+  `site/src/lib/server/pages.ts`.

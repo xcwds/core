@@ -1,0 +1,44 @@
+{
+	"name": "@xcwds/site",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"prepare": "svelte-kit sync || echo ''",
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+		"test:e2e": "vite build && pnpm build:base && playwright test",
+		"build:base": "BASE_PATH=/core BUILD_DIR=build-core vite build"
+	},
+	"dependencies": {
+		"@xcwds-site/plugin-pages": "workspace:*",
+		"@xcwds/core": "workspace:*",
+		"@xcwds/plugin-install": "workspace:*",
+		"@xcwds/plugin-offline": "workspace:*",
+		"@xcwds/plugin-settings": "workspace:*",
+		"@xcwds/plugin-shell": "workspace:*",
+		"@xcwds/plugin-theme": "workspace:*",
+		"@xcwds/plugin-update": "workspace:*",
+		"@xcwds/sveltekit": "workspace:*",
+		"xcwds-plugin-tally": "workspace:*"
+	},
+	"devDependencies": {
+		"@playwright/test": "1.57.0",
+		"@resvg/resvg-js": "^2.6.2",
+		"@sveltejs/kit": "^2.49.1",
+		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@tailwindcss/vite": "^4.3.3",
+		"@types/node": "^24",
+		"@xcwds/testing": "workspace:*",
+		"marked": "^18.1.0",
+		"svelte": "^5.45.6",
+		"svelte-check": "^4.3.4",
+		"tailwindcss": "^4.3.3",
+		"typescript": "^5.9.3",
+		"vite": "^7.2.6",
+		"vitest": "^4.0.15"
+	},
+	"description": "The @xcwds docs site, built with @xcwds."
+}
